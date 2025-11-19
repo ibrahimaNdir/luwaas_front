@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:luwaas/presentation/commun/role_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -15,6 +16,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -23,8 +25,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _controller.forward();
 
     // Navigation après 3 secondes
-    Future.delayed(const Duration(seconds: 3), () {
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen()));
+    Future.delayed(const Duration(seconds: 10), () {
+       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RoleScreen()));
     });
   }
 
@@ -59,8 +61,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                   ),
                 ),
-                const SizedBox(height: 1),
-
                 // Texte WA
                 Padding(
                   padding: const EdgeInsets.only(right: 45.0), // Décalage vers la droite
@@ -74,7 +74,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                   ),
                 ),
-                const SizedBox(height: 1),
 
                 // AG avec icône SVG à côté
                 Row(
@@ -92,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ),
                       ),
                     ),
-                    const SizedBox(width: 2),
+
                     SvgPicture.asset(
                       'assets/icons/house_welcome.svg',
                       width: 50,
