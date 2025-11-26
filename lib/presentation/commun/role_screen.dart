@@ -95,7 +95,7 @@ class _RoleScreenState extends State<RoleScreen> {
                   GestureDetector(
                     onTap: () {
                       // Navigation vers l'écran de connexion
-                      // Navigator.pushNamed(context, '/login');
+                      Navigator.pushNamed(context, '/login');
                     },
                     child: const Text(
                       'Se connecter',

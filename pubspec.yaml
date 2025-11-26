@@ -35,6 +35,10 @@ dependencies:
   # Localisation
   geolocator: ^11.0.0
   google_maps_flutter: ^2.5.0
+    # Firebase
+  firebase_core: ^3.8.1
+  cloud_firestore: ^5.5.0
+
 
     # Paiements
  # flutter_wave: ^3.0.0
@@ -101,11 +105,17 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
+  fonts:
+   - family: Figtree
+     fonts:
+         - asset: assets/fonts/Figtree-Bold.ttf
+           weight: 700
+         - asset: assets/fonts/Figtree-SemiBold.ttf
+           weight: 600
+         - asset: assets/fonts/Figtree-Regular.ttf
+           weight: 400
+         - asset: assets/fonts/Figtree-Medium.ttf
+           weight: 500
   #         style: italic
   #   - family: Trajan Pro
   #     fonts:

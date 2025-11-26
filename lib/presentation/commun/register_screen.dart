@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
 
 class RegisterScreen extends StatefulWidget {
   final String userType;
@@ -23,10 +26,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _prenomController = TextEditingController();
   final _nomController = TextEditingController();
   final _cniController = TextEditingController();
+  final _telController = TextEditingController();
 
   // Keys pour les formulaires
   final _formKey1 = GlobalKey<FormState>();
   final _formKey2 = GlobalKey<FormState>();
+
+  // États dynamiques
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -36,10 +45,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _prenomController.dispose();
     _nomController.dispose();
     _cniController.dispose();
+    _telController.dispose();
     super.dispose();
   }
 
-  // Appuie sur "CONTINUER" (première page : prénom/nom)
+  // Aller à la page 2
   void _allerAuPage2() {
     if (_formKey1.currentState!.validate()) {
       _pageController.nextPage(
@@ -48,31 +58,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       setState(() {
         _currentPage = 1;
+        _errorMessage = null;
       });
     }
   }
 
-  // Appuie sur "INSCRIPTION" (deuxième page)
-  void _terminerInscription() {
-    if (_formKey2.currentState!.validate()) {
+  // Retour à la page 1
+  void _retourAuPage1() {
+    _pageController.previousPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+    setState(() {
+      _currentPage = 0;
+      _errorMessage = null;
+    });
+  }
+
+  // Inscription finale
+  Future<void> _terminerInscription() async {
+    if (!_formKey2.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
       final signupData = {
-        'email': _emailController.text,
+        'email': _emailController.text.trim(),
         'password': _passwordController.text,
-        'prenom': _prenomController.text,
-        'nom': _nomController.text,
-        'cni': _cniController.text,
+        'prenom': _prenomController.text.trim(),
+        'nom': _nomController.text.trim(),
+        'telephone': _telController.text.trim(),
+        'cni': _cniController.text.trim(),
         'user_type': widget.userType,
-        'password_confirmation': _passwordController.text,
       };
 
-      print('Données d\'inscription: $signupData');
-
-      // Ici tu peux faire l'appel à l'API, puis naviguer vers la prochaine page si OK
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inscription réussie !')),
+      final response = await http.post(
+        Uri.parse('http://localhost:8000/api/register/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(signupData),
       );
-      // Par exemple : Navigator.pushReplacementNamed(context, '/home');
+
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (mounted) {
+        if (response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Inscription réussie !'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          setState(() {
+            _errorMessage = 'Erreur d’inscription : ${response.body}';
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Une erreur est survenue. Veuillez réessayer.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+
   }
 
   @override
@@ -83,8 +140,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _buildPage1(), // Première : Prénom/Nom
-          _buildPage2(), // Deuxième : Email/Téléphone/Password/CNI
+          _buildPage1(),
+          _buildPage2(),
         ],
       ),
     );
@@ -93,119 +150,177 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Page 1 - Prénom et Nom
   Widget _buildPage1() {
     return SafeArea(
-      child: SingleChildScrollView( // ← AJOUTE ICI !
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
         child: Form(
           key: _formKey1,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 40),
-              // Logo
+              // Logo LUWAAS
               Row(
                 children: [
                   const Text(
                     'LUWAAS',
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
                       color: Color(0xFF2E4B8C),
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(width: 8),
                   SvgPicture.asset(
                     'assets/icons/house_welcome.svg',
-                    width: 50,
-                    height: 50,
+                    width: 30,
+                    height: 30,
                     colorFilter: const ColorFilter.mode(
-                      Colors.white,
+                      Color(0xFF2E4B8C),
                       BlendMode.srcIn,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 50),
+
               // Titre
               const Text(
                 'Ajouter Votre Nom',
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
+
               // Champ Prénom
               const Text(
                 'Prenom',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _prenomController,
-                decoration: const InputDecoration(
-                  border: UnderlineInputBorder(),
-                  enabledBorder: UnderlineInputBorder(
+                decoration: InputDecoration(
+                  hintText: 'Entrez votre prénom',
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  enabledBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF2E4B8C), width: 2),
+                  ),
+                  errorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.red),
                   ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre prénom';
+                    return 'Ce champ est requis';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
+
               // Champ Nom
               const Text(
                 'Nom',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _nomController,
-                decoration: const InputDecoration(
-                  border: UnderlineInputBorder(),
-                  enabledBorder: UnderlineInputBorder(
+                decoration: InputDecoration(
+                  hintText: 'Entrez votre nom',
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  enabledBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF2E4B8C), width: 2),
+                  ),
+                  errorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.red),
                   ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre nom';
+                    return 'Ce champ est requis';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 32),
+
+              // Champ Téléphone
+              const Text(
+                'Téléphone',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _telController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  hintText: 'Entrez votre numéro de téléphone',
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF2E4B8C), width: 2),
+                  ),
+                  errorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.red),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Ce champ est requis';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 60),
+
               // Bouton Continuer
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55,
                 child: ElevatedButton(
                   onPressed: _allerAuPage2,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2E4B8C),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(30),
                     ),
+                    elevation: 0,
                   ),
                   child: const Text(
                     'CONTINUER',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      letterSpacing: 1,
                     ),
                   ),
                 ),
               ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -216,87 +331,133 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Page 2 - Email, Password, CNI
   Widget _buildPage2() {
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
         child: Form(
           key: _formKey2,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 40),
-              // Logo
+              // Bouton retour + Logo
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'LUWAAS',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2E4B8C),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2E4B8C)),
+                    onPressed: _retourAuPage1,
                   ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.home_outlined,
-                    color: Color(0xFF2E4B8C),
-                    size: 28,
+                  Row(
+                    children: [
+                      const Text(
+                        'LUWAAS',
+                        style: TextStyle(
+                          color: Color(0xFF2E4B8C),
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SvgPicture.asset(
+                        'assets/icons/house_welcome.svg',
+                        width: 30,
+                        height: 30,
+                        colorFilter: const ColorFilter.mode(
+                          Color(0xFF2E4B8C),
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 40),
+
+              // Titre
               const Text(
                 'Votre Numero Tel ou Email',
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 30),
-              // Champ Email ou Telephone
+              const SizedBox(height: 24),
+
+              // Champ Email ou Téléphone
               const Text(
                 'Email ou Telephone',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  border: UnderlineInputBorder(),
-                  enabledBorder: UnderlineInputBorder(
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'Entrez votre email ou téléphone',
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  enabledBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF2E4B8C), width: 2),
+                  ),
+                  errorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.red),
                   ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre email ou téléphone';
+                    return 'Ce champ est requis';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
+
+              // Champ Mot de passe
               const Text(
                 'Mots de passe',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  border: UnderlineInputBorder(),
-                  enabledBorder: UnderlineInputBorder(
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  hintText: 'Entrez votre mot de passe',
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  enabledBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF2E4B8C), width: 2),
+                  ),
+                  errorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.red),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
                   ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre mot de passe';
+                    return 'Ce champ est requis';
                   }
                   if (value.length < 6) {
                     return 'Le mot de passe doit contenir au moins 6 caractères';
@@ -304,26 +465,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
+
+              // Champ CNI
               const Text(
-                'Cni',
+                'CNI',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _cniController,
-                decoration: const InputDecoration(
-                  border: UnderlineInputBorder(),
-                  enabledBorder: UnderlineInputBorder(
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Entrez votre numéro CNI',
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  enabledBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF2E4B8C), width: 2),
+                  ),
+                  errorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.red),
                   ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Veuillez entrer votre cni';
+                    return 'Ce champ est requis';
                   }
                   if (value.length < 12) {
                     return 'La CNI doit contenir au moins 12 caractères';
@@ -331,28 +503,91 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 24),
+
+              // Message d'erreur
+              if (_errorMessage != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Bouton Inscription
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55,
                 child: ElevatedButton(
-                  onPressed: _terminerInscription,
+                  onPressed: _isLoading ? null : _terminerInscription,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2E4B8C),
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(30),
                     ),
+                    elevation: 0,
                   ),
-                  child: const Text(
+                  child: _isLoading
+                      ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text(
                     'INSCRIPTION',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      letterSpacing: 1,
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(height: 30),
+
+              // Lien vers connexion
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Vous avez déjà un compte ? ',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                    ),
+                    child: const Text(
+                      'Se connecter',
+                      style: TextStyle(
+                        color: Color(0xFF2E4B8C),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

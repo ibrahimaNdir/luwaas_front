@@ -42,66 +42,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: const Color(0xFF1E3A8A), // Bleu royal foncé
+        color: const Color(0xFF1E3A8A),
         child: Center(
           child: FadeTransition(
             opacity: _fadeAnimation,
-            child: Column(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 90.0), // Décalage vers la droite
-                  child: const Text(
-                    'LU',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 4,
-                    ),
+                const Text(
+                  'LUWAAS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 4,
                   ),
                 ),
-                // Texte WA
-                Padding(
-                  padding: const EdgeInsets.only(right: 45.0), // Décalage vers la droite
-                  child: const Text(
-                    'WA',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 4,
-                    ),
+                const SizedBox(width: 8),
+                SvgPicture.asset(
+                  'assets/icons/house_welcome.svg',
+                  width: 40,
+                  height: 40,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.white,
+                    BlendMode.srcIn,
                   ),
-                ),
-
-                // AG avec icône SVG à côté
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 50.0), // Décalage vers la droite
-                      child: const Text(
-                        'AS',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 4,
-                        ),
-                      ),
-                    ),
-
-                    SvgPicture.asset(
-                      'assets/icons/house_welcome.svg',
-                      width: 50,
-                      height: 50,
-                      colorFilter: const ColorFilter.mode(
-                        Colors.white,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
