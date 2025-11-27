@@ -18,7 +18,13 @@ class _PropertyScreenState extends State<PropertyScreen> {
             child: Container(
               color: Colors.white,
               child: Container(
-                color: const Color(0xFF1E3A8A),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E3A8A),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                ),
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

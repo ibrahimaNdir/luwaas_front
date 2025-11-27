@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
+import '../provider/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,7 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Fonction de connexion (à connecter avec ta base de données)
   Future<void> _login() async {
-    // Valide le formulaire
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -38,39 +39,25 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
+    // Obtient le provider
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     try {
-      // Récupère les valeurs
-      String emailOrPhone = _emailController.text.trim();
-      String password = _passwordController.text;
+      await authProvider.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
-      // ============================================
-      // ICI TU CONNECTES TA BASE DE DONNÉES
-      // ============================================
-      // Exemple avec Firebase:
-      // await FirebaseAuth.instance.signInWithEmailAndPassword(
-      //   email: emailOrPhone,
-      //   password: password,
-      // );
-
-      // Exemple avec API:
-      // final response = await http.post(
-      //   Uri.parse('https://ton-api.com/login'),
-      //   body: {
-      //     'email': emailOrPhone,
-      //     'password': password,
-      //   },
-      // );
-
-      // Simulation d'un délai (à supprimer en production)
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Si connexion réussie, naviguer vers l'écran principal
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+      if (authProvider.isAuthenticated) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
+        setState(() {
+          _errorMessage = authProvider.errorMessage ?? 'Erreur de connexion';
+        });
       }
-
     } catch (e) {
-      // Gère les erreurs
       setState(() {
         _errorMessage = 'Email/téléphone ou mot de passe incorrect';
       });
@@ -82,6 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

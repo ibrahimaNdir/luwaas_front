@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:luwaas/presentation/commun/register_screen.dart';
 
 class RoleScreen extends StatefulWidget {
   const RoleScreen({super.key});
@@ -94,7 +93,6 @@ class _RoleScreenState extends State<RoleScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigation vers l'écran de connexion
                       Navigator.pushNamed(context, '/login');
                     },
                     child: const Text(
@@ -124,12 +122,11 @@ class _RoleScreenState extends State<RoleScreen> {
   }) {
     return GestureDetector(
       onTap: () {
-        // Navigation vers l'écran d'inscription avec le user_type
-        Navigator.push(
+
+        Navigator.pushNamed(
           context,
-          MaterialPageRoute(
-            builder: (context) => RegisterScreen(userType: userType),
-          ),
+          '/register',
+          arguments: userType,
         );
       },
       child: Container(

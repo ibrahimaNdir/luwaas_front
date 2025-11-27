@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Louwaas ',
+      title: 'Louwaas',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E3A8A)),
         fontFamily: 'Figtree',
@@ -24,14 +24,36 @@ class MyApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: false,
       home: const SplashScreen(),
+
+      // Routes simples (sans arguments)
       routes: {
         '/login': (context) => const LoginScreen(),
         '/role': (context) => const RoleScreen(),
-        '/register': (context) => RegisterScreen(userType: 'locataire'),
         '/main_bailleur': (context) => const MainScreenBailleur(),
         '/main_client': (context) => const MainScreenLocataire(),
+      },
 
-        // Ajoute d'autres routes (ajout/modification) ici si nécessaire
+      // ✅ Route avec arguments dynamiques
+      onGenerateRoute: (settings) {
+        // Route /register avec userType dynamique
+        if (settings.name == '/register') {
+          final userType = settings.arguments as String?;
+
+          // Si pas de userType, redirige vers RoleScreen
+          if (userType == null) {
+            return MaterialPageRoute(
+              builder: (context) => const RoleScreen(),
+            );
+          }
+
+          // Sinon, affiche RegisterScreen avec le bon userType
+          return MaterialPageRoute(
+            builder: (context) => RegisterScreen(userType: userType),
+          );
+        }
+
+        // Route par défaut si aucune route ne correspond
+        return null;
       },
     );
   }

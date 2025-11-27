@@ -4,6 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import '';
+import '../provider/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String userType;
@@ -84,27 +87,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errorMessage = null;
     });
 
-    try {
-      final signupData = {
-        'email': _emailController.text.trim(),
-        'password': _passwordController.text,
-        'prenom': _prenomController.text.trim(),
-        'nom': _nomController.text.trim(),
-        'telephone': _telController.text.trim(),
-        'cni': _cniController.text.trim(),
-        'user_type': widget.userType,
-      };
+    // Obtient le provider
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      final response = await http.post(
-        Uri.parse('http://localhost:8000/api/register/'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(signupData),
+    try {
+      await authProvider.register(
+        prenom :_prenomController.text.trim(),
+        nom: _nomController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        telephone: _telController.text,
+        cni: _cniController.text
       );
 
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (mounted) {
-        if (response.statusCode == 201) {
+      // Vérifie si l'inscription a réussi
+      if (authProvider.isAuthenticated && authProvider.errorMessage == null) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Inscription réussie !'),
@@ -112,11 +110,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           );
           Navigator.pushReplacementNamed(context, '/home');
-        } else {
-          setState(() {
-            _errorMessage = 'Erreur d’inscription : ${response.body}';
-          });
         }
+      } else {
+        setState(() {
+          _errorMessage = authProvider.errorMessage ?? 'Erreur d\'inscription';
+        });
       }
     } catch (e) {
       setState(() {
@@ -129,8 +127,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
     }
-
   }
+
 
   @override
   Widget build(BuildContext context) {
