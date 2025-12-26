@@ -1,9 +1,12 @@
+
+import 'package:luwaas/services/fcm_service.dart';
 import 'package:flutter/material.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/model/users.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _repository = AuthRepository();
+  final FcmService _fcmService = FcmService();
 
   User? _user;
   bool _isLoading = false;
@@ -14,7 +17,10 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
 
-  // Register - CORRIGÉ avec TOUS les paramètres
+  // ✅ Getter pour récupérer le rôle de l'utilisateur
+  String? get userRole => _user?.userType;
+
+  // Register
   Future<void> register({
     required String prenom,
     required String nom,
@@ -37,19 +43,25 @@ class AuthProvider extends ChangeNotifier {
         telephone: telephone,
         cni: cni,
         userType: userType,
-
       );
+      _errorMessage = null;
+
+      if (_user?.telephone != null && _user!.telephone!.isNotEmpty) {
+        await _fcmService.saveTokenForPhone(_user!.telephone!);
+        _fcmService.listenTokenRefresh(_user!.telephone!);
+      }
     } catch (e) {
       _errorMessage = e.toString();
+      _user = null;
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  // Login - INCHANGÉ (déjà correct)
+  // Login
   Future<void> login({
-    required String email,
+    required String login,
     required String password,
   }) async {
     _isLoading = true;
@@ -58,18 +70,24 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       _user = await _repository.login(
-        email: email,
+        login: login,
         password: password,
       );
+      _errorMessage = null;
+      if (_user?.telephone != null && _user!.telephone!.isNotEmpty) {
+        await _fcmService.saveTokenForPhone(_user!.telephone!);
+        _fcmService.listenTokenRefresh(_user!.telephone!);
+      }
     } catch (e) {
       _errorMessage = e.toString();
+      _user = null;
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  // Logout - INCHANGÉ
+  // Logout
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
@@ -77,6 +95,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _repository.logout();
       _user = null;
+      _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString();
     }
@@ -85,12 +104,22 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Check auth status - INCHANGÉ
+  // Check auth status
   Future<void> checkAuthStatus() async {
-    final isLoggedIn = await _repository.isLoggedIn();
-    if (!isLoggedIn) {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final isLoggedIn = await _repository.isLoggedIn();
+      if (!isLoggedIn) {
+        _user = null;
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
       _user = null;
     }
+
+    _isLoading = false;
     notifyListeners();
   }
 }

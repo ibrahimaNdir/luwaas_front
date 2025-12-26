@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'bottom_bar.dart';
-import 'home_screen.dart'; // Exemple d'écran Home pour bailleur
-import 'property_screen.dart'; // Exemple d'écran Propriétés
-import 'dashboard_screen.dart'; // Exemple Dashboard
-import 'locataire_screen.dart'; // Exemple Locataire
+import 'home_screen.dart';
+import 'property_screen.dart';
+import 'dashboard_screen.dart';
+import 'paiement_screen.dart'; // ✅ Renommé pour correspondre
 import 'bails_screen.dart';
-import 'account_screen.dart'; // Exemple Compte
+import 'account_screen.dart';
 
 class MainScreenBailleur extends StatefulWidget {
   const MainScreenBailleur({Key? key}) : super(key: key);
@@ -17,13 +17,14 @@ class MainScreenBailleur extends StatefulWidget {
 class _MainScreenBailleurState extends State<MainScreenBailleur> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    PropertyScreen(),
-    DashboardScreen(),
-    LocataireScreen(),
-    BailScreen(),
-    AccountScreen(),
+  // Liste des écrans correspondant aux items de la BottomBar
+  static const List<Widget> _screens = [
+    HomeScreen(),          // Accueil
+    PropertyScreen(),      // Propriétés
+    DashboardScreen(),     // Dashboard
+    PaymentsScreen(),      // Paiements (✅ corrigé)
+    BailScreen(),         // Bails (pluriel cohérent)
+    AccountScreen(),       // Compte
   ];
 
   void _onItemTapped(int index) {
@@ -35,7 +36,10 @@ class _MainScreenBailleurState extends State<MainScreenBailleur> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

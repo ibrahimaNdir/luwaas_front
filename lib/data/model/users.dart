@@ -26,18 +26,26 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],
-      prenom: json['prenom'],
-      nom: json['nom'],
-      email: json['email'],
-      telephone: json['telephone'],
-      cni: json['cni'],
-      userType: json['user_type'],
+
+      // ✅ PROTECTION AJOUTÉE ICI (?? "")
+      prenom: json['prenom'] ?? "",
+      nom: json['nom'] ?? "",
+      email: json['email'] ?? "",
+
+      // On utilise .toString() au cas où le téléphone arrive en format nombre (int)
+      telephone: json['telephone']?.toString() ?? "",
+      cni: json['cni']?.toString() ?? "",
+
+      // On vérifie plusieurs clés possibles pour le type + une valeur par défaut
+      userType: json['user_type'] ?? json['type'] ?? json['role'] ?? "locataire",
+
       token: json['token'],
+
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+          ? DateTime.tryParse(json['created_at']) // tryParse est plus sûr que parse
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'])
+          ? DateTime.tryParse(json['updated_at'])
           : null,
     );
   }

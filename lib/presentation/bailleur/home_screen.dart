@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-// Écran Accueil
+// Imports de tes fichiers
+import '../../presentation/provider/PropertyProvider.dart';
+import '../../presentation/provider/DemandeProvider.dart';
+import '../../data/model/property.dart';
+import 'add_property_screen.dart';
+import '../commun/notifications_screen.dart';
+import 'demande_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -11,38 +22,70 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int notificationCount = 0;
-  String currentUserId = "TonUserID"; // Remplace par ton user réel
+  int? currentUserId;
+  late final FirebaseMessaging _messaging;
 
   @override
   void initState() {
     super.initState();
-    _listenToNotifications();
+
+    _messaging = FirebaseMessaging.instance;
+    _loadLaravelUserId();
+
+    // Charger les propriétés après l'affichage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PropertyProvider>().loadOwnerProperties();
+    });
+
+    _initForegroundMessagingListener();
   }
 
-  void _listenToNotifications() {
-    FirebaseFirestore.instance
-        .collection('notifications')
-        .where('userId', isEqualTo: currentUserId)
-        .where('isRead', isEqualTo: false)
-        .snapshots()
-        .listen((snapshot) {
-          if (mounted) {
-            setState(() {
-              notificationCount = snapshot.docs.length;
-            });
-          }
-        });
+  void _initForegroundMessagingListener() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final notification = message.notification;
+      if (!mounted) return;
+
+      if (notification != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(notification.title ?? 'Nouvelle notification'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
+      // Ici tu peux aussi faire un refresh manuel si un jour tu en as besoin,
+      // mais ton StreamBuilder sur la collection "notifications"
+      // met déjà à jour le badge automatiquement.
+    });
   }
 
-  void _navigateToAddProperty(String category) {
-    // Ici tu navigues vers ton écran d'ajout existant
-    // Navigator.push(context, MaterialPageRoute(builder: (context) => YourAddScreen(category: category)));
+  Future<void> _loadLaravelUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      currentUserId = prefs.getInt('userId');
+    });
+    print("🆔 User ID chargé : $currentUserId");
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navigation vers ajout de $category'),
-        backgroundColor: const Color(0xFF263A8B),
+  void _goToAddProperty(String type) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AddPropertyScreen(propertyType: type)),
+    );
+  }
+
+  void _goToNotifications() {
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Chargement du profil en cours...")),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(userId: currentUserId!),
       ),
     );
   }
@@ -52,122 +95,169 @@ class _HomeScreenState extends State<HomeScreen> {
     return Material(
       child: CustomScrollView(
         slivers: [
+          // 🔵 HEADER BLEU
           SliverToBoxAdapter(
             child: Container(
               color: Colors.white,
               child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E3A8A),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E3A8A), // Bleu Luwaas
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
                   ),
                 ),
-
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 1. LA LIGNE DU HAUT (Icônes)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Bienvenue Ibou !",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            // Navigation vers écran notifications
-                            /* Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const NotificationsScreen(),
-                          ),
-                        ); */
-                          },
-                          child: Stack(
-                            children: [
-                              const Icon(
-                                Icons.notifications,
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                              if (notificationCount > 0)
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
+                        // --- A. GESTION DES DEMANDES (Laravel / Provider) ---
+                        if (currentUserId == null)
+                          const Icon(Icons.add_home_outlined,
+                              color: Colors.white, size: 34)
+                        else
+                          FutureBuilder(
+                            future: Provider.of<DemandeProvider>(context,
+                                listen: false)
+                                .fetchDemandesBailleur(),
+                            builder: (context, snapshot) {
+                              final provider =
+                              Provider.of<DemandeProvider>(context);
+                              final count = provider.demandes
+                                  .where(
+                                      (d) => d.status == 'en_attente')
+                                  .length;
+
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                      const DemandeScreen(),
                                     ),
-                                  ),
+                                  );
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    const Icon(Icons.add_home_outlined,
+                                        color: Colors.white, size: 34),
+                                    if (count > 0)
+                                      Positioned(
+                                        right: -2,
+                                        top: -2,
+                                        child: _buildBadge(count),
+                                      ),
+                                  ],
                                 ),
-                            ],
+                              );
+                            },
                           ),
-                        ),
+
+                        // --- B. NOTIFICATIONS (Firebase) ---
+                        if (currentUserId == null)
+                          const Icon(Icons.notifications_none,
+                              color: Colors.white, size: 34)
+                        else
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('notifications')
+                                .where('user_id',
+                                isEqualTo:
+                                currentUserId.toString())
+                                .where('is_read', isEqualTo: false)
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              final count =
+                                  snapshot.data?.docs.length ?? 0;
+
+                              return GestureDetector(
+                                onTap: _goToNotifications,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    const Icon(
+                                      Icons.notifications_none,
+                                      color: Colors.white,
+                                      size: 34,
+                                    ),
+                                    if (count > 0)
+                                      Positioned(
+                                        right: -2,
+                                        top: -2,
+                                        child: _buildBadge(count),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+
+                    const SizedBox(height: 25),
+
+                    // 2. BARRE DE RECHERCHE
                     TextField(
                       decoration: InputDecoration(
                         hintText: "Rechercher",
+                        hintStyle:
+                        TextStyle(color: Colors.grey[400]),
                         filled: true,
                         fillColor: Colors.white,
-                        prefixIcon: const Icon(Icons.search),
+                        prefixIcon: const Icon(Icons.search,
+                            color: Colors.grey),
+                        contentPadding:
+                        const EdgeInsets.symmetric(vertical: 0),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(32),
+                          borderRadius: BorderRadius.circular(15),
                           borderSide: BorderSide.none,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
+
+                    const SizedBox(height: 25),
+
+                    // 3. TEXTE ET ILLUSTRATION
+                    Padding(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 5),
                       child: Row(
+                        mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
                         children: [
+                          const Column(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              Text("Louez.",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("Encaissez.",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold)),
+                              SizedBox(height: 4),
+                              Text("Gérez",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                           SvgPicture.asset(
                             'assets/images/searching house.svg',
-                            width: 40,
-                            height: 40,
-                            colorFilter: const ColorFilter.mode(
-                              Colors.white,
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Louez.\nEncaissez.\nGérez.",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: const Color(0xFF263A8B),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  onPressed: () {},
-                                  child: const Text("Commencer"),
-                                ),
-                              ],
-                            ),
+                            width: 100,
+                            height: 100,
                           ),
                         ],
                       ),
@@ -177,92 +267,120 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+
+          // BODY (Propriétés)
           SliverToBoxAdapter(
             child: Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              padding: const EdgeInsets.symmetric(
+                  vertical: 20, horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Catégories",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 16, // espace horizontal
-                    runSpacing: 16, // espace vertical
-                    children: [
-                      categoryButton(
-                        "VILLA",
-                        Icons.villa,
-                        onPressed: () {
-                          // Action quand on clique sur VILLA
-                          print("VILLA sélectionnée");
-                        },
-                      ),
-                      categoryButton(
-                        "MAISON",
-                        Icons.home,
-                        onPressed: () {
-                          // Action quand on clique sur MAISON
-                          print("MAISON sélectionnée");
-                        },
-                      ),
-                      categoryButton(
-                        "IMMEUBLE",
-                        Icons.apartment,
-                        onPressed: () {
-                          // Action quand on clique sur IMMEUBLE
-                          print("IMMEUBLE sélectionnée");
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Vos Propriétés",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.black,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          // Navigation vers la liste complète
-                        },
-                        child: const Text(
-                          "Voir Tous",
-                          style: TextStyle(color: Colors.blue),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Center(
-                    child: Column(
+                  const Text("Catégories",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 18)),
+                  const SizedBox(height: 15),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
                       children: [
-                        Icon(
-                          Icons.home_outlined,
-                          size: 52,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          "Aucune propriété ajoutée pour le moment",
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
+                        _categoryButton("VILLA", Icons.villa,
+                            onPressed: () =>
+                                _goToAddProperty("villa")),
+                        const SizedBox(width: 15),
+                        _categoryButton("MAISON", Icons.home,
+                            onPressed: () =>
+                                _goToAddProperty("maison")),
+                        const SizedBox(width: 15),
+                        _categoryButton("IMMEUBLE", Icons.apartment,
+                            onPressed: () =>
+                                _goToAddProperty("immeuble")),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 30),
+                  const Row(
+                    mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Vos Propriétés",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18)),
+                      Text("Voir Tous",
+                          style: TextStyle(
+                              color: Color(0xFF1E3A8A),
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  Consumer<PropertyProvider>(
+                    builder: (context, provider, _) {
+                      if (provider.isLoading) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+                      if (provider.properties.isEmpty) {
+                        return Center(
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 20),
+                              Icon(Icons.house_siding_rounded,
+                                  size: 60,
+                                  color: Colors.grey[300]),
+                              const SizedBox(height: 10),
+                              Text("Aucune propriété ajoutée",
+                                  style: TextStyle(
+                                      color: Colors.grey[500])),
+                            ],
+                          ),
+                        );
+                      }
+                      return Column(
+                        children: provider.properties
+                            .take(3)
+                            .map(
+                              (p) => Card(
+                            margin: const EdgeInsets.only(
+                                bottom: 10),
+                            elevation: 2,
+                            shape:
+                            RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              leading: Container(
+                                padding:
+                                const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius:
+                                  BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.home,
+                                    color: Color(0xFF1E3A8A)),
+                              ),
+                              title: Text(p.titre,
+                                  style: const TextStyle(
+                                      fontWeight:
+                                      FontWeight.bold)),
+                              subtitle: Text(p.adresse),
+                              trailing: const Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 14,
+                                  color: Colors.grey),
+                            ),
+                          ),
+                        )
+                            .toList(),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -273,44 +391,52 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget categoryButton(
-    String label,
-    IconData icon, {
-    required VoidCallback onPressed,
-  }) {
+  // Petit widget pour le badge rouge pour éviter la répétition
+  Widget _buildBadge(int count) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: const BoxDecoration(
+        color: Colors.orange,
+        shape: BoxShape.circle,
+        border: Border.fromBorderSide(
+          BorderSide(color: Color(0xFF1E3A8A), width: 1.5),
+        ),
+      ),
+      constraints:
+      const BoxConstraints(minWidth: 18, minHeight: 18),
+      child: Center(
+        child: Text(
+          '$count',
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _categoryButton(String label, IconData icon,
+      {required VoidCallback onPressed}) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onPressed,
       child: Container(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF2F2F2), // gris très pâle comme ton image
-          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xFFF5F7FA),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // Petit carré blanc autour de l'icône
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: const Color(0xFF263A8B), // même bleu que ton image
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
+            Icon(icon,
+                size: 20, color: const Color(0xFF1E3A8A)),
+            const SizedBox(width: 8),
             Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF263A8B),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E3A8A),
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],

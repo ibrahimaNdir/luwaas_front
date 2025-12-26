@@ -2,7 +2,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class AuthRemoteSource {
-  final String baseUrl = 'http://localhost:8000/api';
+  final String baseUrl = 'http://192.168.1.33:8000/api';
+
+
 
   // Register - MODIFIÉ pour inclure TOUS les paramètres
   Future<Map<String, dynamic>> register({
@@ -37,14 +39,14 @@ class AuthRemoteSource {
 
   // Login - CORRECTION du paramètre 'login' → 'email'
   Future<Map<String, dynamic>> login({
-    required String email,
+    required String login,
     required String password,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'email': email,  // ✅ Changé de 'login' → 'email'
+        'login': login,  // ✅ Changé de 'login' → 'email'
         'password': password,
       }),
     );

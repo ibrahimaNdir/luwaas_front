@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "846801641268",
+    "project_id": "luwaas-8417c",
+    "storage_bucket": "luwaas-8417c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:846801641268:android:9e93e1a18cd6212e940f61",
+        "android_client_info": {
+          "package_name": "com.example.luwaas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABSo19hzeyhuAtCsO_v8qh-RGSHFPmpPo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

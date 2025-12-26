@@ -1,3 +1,4 @@
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -14,11 +15,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
-  // Clé pour le formulaire (validation)
   final _formKey = GlobalKey<FormState>();
 
-  // États dynamiques
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
@@ -30,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Fonction de connexion (à connecter avec ta base de données)
+  // ✅ Fonction de connexion avec redirection selon le rôle
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -39,18 +37,29 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    // Obtient le provider
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     try {
       await authProvider.login(
-        email: _emailController.text.trim(),
+        login: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       if (authProvider.isAuthenticated) {
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
+          // ✅ Redirection selon le rôle de l'utilisateur
+          final userRole = authProvider.userRole;
+
+          // Ton code actuel est bon :
+          if (userRole == 'proprietaire') {
+            Navigator.pushReplacementNamed(context, '/main_bailleur');
+          } else if (userRole == 'locataire' || userRole == 'client') {
+            Navigator.pushReplacementNamed(context, '/client_home');
+          }
+          else {
+            // Si le rôle n'est pas défini, demander à l'utilisateur de choisir
+            Navigator.pushReplacementNamed(context, '/role');
+          }
         }
       } else {
         setState(() {
@@ -287,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/register');
+                        Navigator.pushNamed(context, '/role');
                       },
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
@@ -309,6 +318,5 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-
   }
 }

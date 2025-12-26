@@ -1,19 +1,16 @@
-import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import '';
+
 import '../provider/auth_provider.dart';
+import '../../presentation/bailleur/home_screen.dart';
+import '../../presentation/locataire/home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String userType;
-  const RegisterScreen({
-    super.key,
-    required this.userType,
-  });
+  const RegisterScreen({super.key, required this.userType});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -92,16 +89,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       await authProvider.register(
-        prenom :_prenomController.text.trim(),
+        prenom: _prenomController.text.trim(),
         nom: _nomController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
         telephone: _telController.text,
-        cni: _cniController.text
+        cni: _cniController.text,
+        userType: widget.userType,
       );
 
       // Vérifie si l'inscription a réussi
       if (authProvider.isAuthenticated && authProvider.errorMessage == null) {
+        // ... l'inscription a réussi ...
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -109,7 +109,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pushReplacementNamed(context, '/home');
+
+          // ✅ CORRECTION : Redirection intelligente selon le userType choisi au début
+          if (widget.userType == 'bailleur' ||
+              widget.userType == 'proprietaire') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const HomeScreen(),
+              ), // Ton écran Bailleur
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              // Remplace par ton écran d'accueil Locataire (ex: ClientHomeScreen)
+              MaterialPageRoute(builder: (_) => const ClientHomeScreen()),
+            );
+          }
         }
       } else {
         setState(() {
@@ -129,7 +145,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -137,10 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
-        children: [
-          _buildPage1(),
-          _buildPage2(),
-        ],
+        children: [_buildPage1(), _buildPage2()],
       ),
     );
   }
@@ -341,7 +353,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2E4B8C)),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Color(0xFF2E4B8C),
+                    ),
                     onPressed: _retourAuPage1,
                   ),
                   Row(
@@ -383,7 +398,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               // Champ Email ou Téléphone
               const Text(
-                'Email ou Telephone',
+                'Email',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -395,7 +410,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  hintText: 'Entrez votre email ou téléphone',
+                  hintText: 'Entrez votre email ',
                   hintStyle: TextStyle(color: Colors.grey.shade400),
                   enabledBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
@@ -407,12 +422,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderSide: BorderSide(color: Colors.red),
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ce champ est requis';
-                  }
-                  return null;
-                },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Ce champ est requis';
+                    }
+                    // Regex simple pour email
+                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    if (!emailRegex.hasMatch(value)) {
+                      return 'Veuillez entrer un email valide';
+                    }
+                    return null;
+                  },
               ),
               const SizedBox(height: 32),
 
@@ -443,7 +463,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: Colors.grey,
                     ),
                     onPressed: () {
@@ -540,23 +562,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                      : const Text(
-                    'INSCRIPTION',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                          : const Text(
+                            'INSCRIPTION',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
                 ),
               ),
               const SizedBox(height: 30),
