@@ -217,11 +217,11 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.5),
                           blurRadius: 8,
                         ),
                       ],
@@ -278,7 +278,7 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                              color: const Color(0xFF1E3A8A).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -428,7 +428,7 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                   colors: [
                     Colors.transparent,
                     Colors.transparent,
-                    Colors.black.withOpacity(0.3),
+                    Colors.black.withValues(alpha: 0.3),
                   ],
                   stops: const [0.0, 0.7, 1.0],
                 ),
@@ -449,11 +449,11 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 8,
                     ),
                   ],
@@ -500,7 +500,7 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                     decoration: BoxDecoration(
                       color: _currentPhotoIndex == index
                           ? Colors.white
-                          : Colors.white.withOpacity(0.5),
+                          : Colors.white.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -552,8 +552,8 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: isPublie
-            ? Colors.green.withOpacity(0.2)
-            : Colors.orange.withOpacity(0.2),
+            ? Colors.green.withValues(alpha: 0.2)
+            : Colors.orange.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isPublie ? Colors.green : Colors.orange,
@@ -589,8 +589,9 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: isDisponible
-            ? const Color(0xFF1E3A8A).withOpacity(0.2)
+            ? const Color(0xFF1E3A8A).withValues(alpha: 0.2)
             : Colors.grey.withOpacity(0.2),
+
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDisponible ? const Color(0xFF1E3A8A) : Colors.grey,
@@ -786,7 +787,7 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
