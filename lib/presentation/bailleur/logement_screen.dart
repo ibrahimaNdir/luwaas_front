@@ -1,4 +1,3 @@
-// lib/screens/LogementScreen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:luwaas/data/model/property.dart';
@@ -55,7 +54,7 @@ class _LogementScreenState extends State<LogementScreen> {
     if (_searchController.text.isNotEmpty) {
       final query = _searchController.text.toLowerCase();
       logements = logements.where((log) {
-        return (log.numero?.toLowerCase().contains(query) ?? false) || // ✅ Recherche par numéro aussi
+        return (log.numero?.toLowerCase().contains(query) ?? false) ||
             log.type.toLowerCase().contains(query);
       }).toList();
     }
@@ -72,7 +71,10 @@ class _LogementScreenState extends State<LogementScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddLogementScreen(proprieteId: safeId),
+        builder: (context) => AddLogementScreen(
+          proprieteId: safeId,
+          typePropriete: widget.property.type,
+        ),
       ),
     );
     _loadLogements();
@@ -264,7 +266,7 @@ class _LogementScreenState extends State<LogementScreen> {
         child: Row(
           children: [
             _buildFilterChip('Tous', Icons.home),
-            _buildFilterChip('appartement', Icons.business), // Valeurs minuscules pour matcher le backend
+            _buildFilterChip('appartement', Icons.business),
             _buildFilterChip('maison', Icons.home_work),
             _buildFilterChip('studio', Icons.apartment),
             _buildFilterChip('villa', Icons.villa),
@@ -275,9 +277,7 @@ class _LogementScreenState extends State<LogementScreen> {
   }
 
   Widget _buildFilterChip(String label, IconData icon) {
-    // Petit hack pour l'affichage : Majuscule première lettre
     String displayLabel = label == 'Tous' ? 'Tous' : label[0].toUpperCase() + label.substring(1);
-
     final isSelected = _selectedFilter.toLowerCase() == label.toLowerCase();
 
     return Padding(
@@ -337,8 +337,6 @@ class _LogementScreenState extends State<LogementScreen> {
     );
   }
 
-  // --- PARTIE MODIFIÉE ---
-
   Widget _buildLogementCard(Logement logement) {
     final bool isDisponible = logement.disponible ?? true;
     final String statut = isDisponible ? 'Disponible' : 'Occupé';
@@ -377,50 +375,40 @@ class _LogementScreenState extends State<LogementScreen> {
   }
 
   Widget _buildLogementImage(Logement logement) {
-    const String serverUrl = 'http://10.0.18.42:8000';
+    String? imageUrl;
 
-    String? imagePath;
-
-    // 1. Photo principale
-    if (logement.photoPrincipale != null) {
-      imagePath = logement.photoPrincipale!.url;
-    }
-    // 2. Première photo de la liste
-    else if (logement.photos != null && logement.photos!.isNotEmpty) {
-      imagePath = logement.photos![0].url;
-    }
-
-    String? fullUrl;
-    if (imagePath != null) {
-      fullUrl = imagePath.startsWith('http')
-          ? imagePath
-          : '$serverUrl$imagePath'; // on préfixe si c'est un chemin relatif
+    if (logement.photoPrincipaleUrl != null && logement.photoPrincipaleUrl!.isNotEmpty) {
+      imageUrl = logement.photoPrincipaleUrl;
+    } else if (logement.photos != null && logement.photos!.isNotEmpty) {
+      imageUrl = logement.photos![0].url;
     }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: fullUrl != null
+      child: imageUrl != null && imageUrl.isNotEmpty
           ? Image.network(
-        fullUrl,
+        imageUrl,
         width: 80,
         height: 80,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
-        loadingBuilder: (_, child, progress) {
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImagePlaceholder();
+        },
+        loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return Container(
             width: 80,
             height: 80,
             color: Colors.grey[200],
-            child:
-            const Center(child: Icon(Icons.image, color: Colors.grey)),
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           );
         },
       )
           : _buildImagePlaceholder(),
     );
   }
-
 
   Widget _buildImagePlaceholder() {
     return Container(
@@ -431,8 +419,8 @@ class _LogementScreenState extends State<LogementScreen> {
     );
   }
 
+  // ✅ VERSION CORRIGÉE - Plus d'overflow
   Widget _buildLogementInfo(Logement logement) {
-    // Formatage propre du type (maison -> Maison)
     String typeAffiche = logement.type;
     if (typeAffiche.isNotEmpty) {
       typeAffiche = typeAffiche[0].toUpperCase() + typeAffiche.substring(1);
@@ -441,30 +429,76 @@ class _LogementScreenState extends State<LogementScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Row avec badges - CORRIGÉ avec Flexible
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E3A8A).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
+            // Badge numéro de porte
+            if (logement.numero != null && logement.numero!.isNotEmpty)
+              Flexible(  // ✅ AJOUT Flexible
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),  // ✅ Réduit padding
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: const Color(0xFF1E3A8A).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.door_front_door_rounded,
+                        size: 14,
+                        color: Color(0xFF1E3A8A),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(  // ✅ AJOUT Flexible pour le texte
+                        child: Text(
+                          logement.numero!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1E3A8A),
+                          ),
+                          overflow: TextOverflow.ellipsis,  // ✅ AJOUT overflow
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: Text(
-                typeAffiche,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E3A8A),
+
+            const SizedBox(width: 6),  // ✅ Réduit de 8 à 6
+
+            // Badge type de logement
+            Flexible(  // ✅ AJOUT Flexible
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  typeAffiche,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                  ),
+                  overflow: TextOverflow.ellipsis,  // ✅ AJOUT overflow
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
 
-        // ✅ CORRECTION ICI : On affiche le Numéro ET le nombre de pièces
+        const SizedBox(height: 8),
+
+        // Titre du logement
         Text(
-          'N° ${logement.numero ?? '-'} • ${logement.nombrePiecesFormat}',
+          logement.titreAffiche ?? 'Sans titre',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -475,23 +509,16 @@ class _LogementScreenState extends State<LogementScreen> {
         ),
 
         const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                logement.loyerFormat,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E3A8A),
-                ),
-              ),
-            ),
-            Text(
-              logement.superficieFormat,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ],
+
+        // Prix
+        Text(
+          logement.loyerFormat,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1E3A8A),
+          ),
+          overflow: TextOverflow.ellipsis,  // ✅ AJOUT sécurité
         ),
       ],
     );
@@ -499,7 +526,7 @@ class _LogementScreenState extends State<LogementScreen> {
 
   Widget _buildStatutBadge(String statut, Color statutColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Réduit un peu
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: statutColor.withOpacity(0.2),
         borderRadius: BorderRadius.circular(8),
@@ -508,7 +535,7 @@ class _LogementScreenState extends State<LogementScreen> {
         statut,
         style: TextStyle(
           color: statutColor,
-          fontSize: 10, // Réduit un peu
+          fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
       ),

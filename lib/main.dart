@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:luwaas/presentation/locataire/notif_screen.dart';
+import 'package:luwaas/presentation/locataire/profile.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -151,6 +153,8 @@ class MyApp extends StatelessWidget {
         '/role': (context) => const RoleScreen(),
         '/main_bailleur': (context) => const MainScreenBailleur(),
         '/main_client': (context) => const ClientHomeScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/notif':(context) => const NotifScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/register') {

@@ -122,12 +122,18 @@ class _RoleScreenState extends State<RoleScreen> {
   }) {
     return GestureDetector(
       onTap: () {
-
-        Navigator.pushNamed(
-          context,
-          '/register',
-          arguments: userType,
-        );
+        // ✅ MODIFICATION : Navigation différente selon le type
+        if (userType == 'locataire') {
+          // Locataire → Mode invité → Écran d'accueil
+          Navigator.pushNamed(context, '/main_client');
+        } else {
+          // Bailleur → Inscription obligatoire
+          Navigator.pushNamed(
+            context,
+            '/register',
+            arguments: userType,
+          );
+        }
       },
       child: Container(
         width: double.infinity,

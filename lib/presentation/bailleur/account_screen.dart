@@ -163,6 +163,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   _buildOptionItem(icon: Icons.person_outline, title: "Mon Profil"),
                   _buildOptionItem(icon: Icons.notifications_none, title: "Notifications"),
                   _buildOptionItem(icon: Icons.lock_outline, title: "Sécurité & Mot de passe"),
+                  _buildOptionItem(icon: Icons.insert_chart_outlined, title: "Tableau de Bord"),
 
                   const SizedBox(height: 24),
 

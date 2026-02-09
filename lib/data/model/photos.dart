@@ -16,18 +16,27 @@ class Photo {
   factory Photo.fromJson(Map<String, dynamic> json) {
     String rawUrl = json['url'] ?? json['chemin'] ?? '';
 
-    if (rawUrl.isNotEmpty && !rawUrl.startsWith('http')) {
-      // 👇 Mets ici l’IP de ton PC (celle que tu utilises déjà pour le back)
-      const String ipDeTonOrdi = '10.0.18.42';
+    // ✅ Si le backend renvoie déjà une URL complète, on la garde
+    if (rawUrl.startsWith('http')) {
+      return Photo(
+        id: json['id'],
+        url: rawUrl, // ✅ URL déjà complète depuis le backend
+        legende: json['legende'],
+        estPrincipale: (json['est_principale'] == 1 ||
+            json['est_principale'] == true ||
+            json['is_main'] == true),
+      );
+    }
 
-      // On enlève juste le slash initial
+    // ⚠️ Sinon, on construit l'URL (mais normalement plus nécessaire)
+    if (rawUrl.isNotEmpty && !rawUrl.startsWith('http')) {
+      const String ipDeTonOrdi = '192.168.1.9'; // ✅ CHANGÉ ICI
+
       if (rawUrl.startsWith('/')) {
-        rawUrl = rawUrl.substring(1); // "storage/....jpg"
+        rawUrl = rawUrl.substring(1);
       }
 
-      // On préfixe uniquement par host + port
       rawUrl = 'http://$ipDeTonOrdi:8000/$rawUrl';
-      // => http://10.0.18.42:8000/storage/....jpg
     }
 
     return Photo(

@@ -2,7 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class AuthRemoteSource {
-  final String baseUrl = 'http://192.168.1.33:8000/api';
+  final String baseUrl = 'http://192.168.1.15:8000/api';
 
 
 

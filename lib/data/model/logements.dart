@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:luwaas/data/model/photos.dart';
 
 class Logement {
@@ -5,7 +6,7 @@ class Logement {
   final String? numero; // Peut être null si non renseigné
   final String type;
   final double superficie;
-  final int nombrePieces;
+  final String ?nombrePieces;
   final bool estMeuble;
   final String etat;
   final String? description;
@@ -17,106 +18,105 @@ class Logement {
   final String? statutPublication;
   final double? distance;
   final String? photoPrincipaleUrl;
+  final int sdb ;
+  final int nbrChambres ;
+  final String ? titreAffiche ;
+
+
 
   Logement({
     this.id,
     this.numero, // Optionnel ici
     required this.type,
     required this.superficie,
-    required this.nombrePieces,
+    this.nombrePieces,
     required this.estMeuble,
     required this.etat,
     this.description,
     required this.loyerMensuel,
     required this.proprieteId,
+    this.titreAffiche,
     this.propriete,
     this.photos,
     this.disponible,
     this.statutPublication,
     this.distance,
     this.photoPrincipaleUrl,
+    required this.nbrChambres,
+    required this.sdb,
   });
-
+// doit Avoir le meme syntaxe que le json
   Map<String, dynamic> toJson() {
     return {
       'numero': numero,
-      'typelogement': type, // Backend attend 'type', pas 'typelogement'
+      'typelogement': type,
       'superficie': superficie,
-      'nombre_pieces': nombrePieces,
-      'meuble': estMeuble ? 1 : 0,
+      'meuble': estMeuble ,
       'etat': etat,
       'description': description,
       'prix_loyer': loyerMensuel,
       'propriete_id': proprieteId,
+      'nombre_chambres' : nbrChambres,
+      'nombre_salles_de_bain': sdb
+
       // Pas besoin d'envoyer 'statut_occupe' car le Back met 'disponible' par défaut
     };
   }
 
   factory Logement.fromJson(Map<String, dynamic> json) {
-    // 1. Gestion des champs qui peuvent avoir plusieurs noms
-    final m = json['est_meuble'] ?? json['meuble'];
-    final rawLoyer = json['prix_loyer'] ?? json['prix_indicatif'] ?? json['loyer_mensuel'];
-
-    // 2. Gestion du statut disponible (Correction clé)
-    // Le backend envoie "statut_occupe": "disponible" ou "occupe"
-    // Par sécurité, on checke aussi si c'est un booléen (1/true) au cas où
-    bool isAvailable = false;
-    if (json['statut_occupe'] != null) {
-      isAvailable = json['statut_occupe'] == 'disponible';
-    } else if (json['disponible'] != null) {
-      isAvailable = (json['disponible'] == 1 || json['disponible'] == true);
-    } else {
-      isAvailable = true; // Par défaut si info manquante
-    }
-
     return Logement(
       id: json['id'],
 
-      // ✅ CORRECTION MAJEURE : Ta migration a créé "numero", pas "numero_porte"
-      numero: (json['numero'] ?? json['numero_porte'])?.toString(),
+      // identifiant → numero
+      numero: json['identifiant']?.toString(),
 
-      type: (json['type'] ?? json['typelogement'] ?? '').toString(),
+      titreAffiche: json['titre_affiche']?.toString(),
 
-      superficie: double.tryParse(json['superficie']?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '0') ?? 0.0,
+      type: json['type']?.toString() ?? '',
 
-      nombrePieces: int.tryParse(json['nombre_pieces']?.toString() ?? '0') ?? 0,
+      superficie: double.tryParse(json['superficie']?.toString() ?? '0') ?? 0.0,
 
-      estMeuble: (m == true || m == 1 || m == '1'),
+      estMeuble: json['meuble'] == true || json['meuble'] == 1,
 
-      etat: (json['etat'] ?? '').toString(),
+      etat: json['etat']?.toString() ?? '',
 
-      statutPublication: (json['statut_publication'] ?? 'brouillon').toString(),
+      description: json['description']?.toString(),
 
-      description: json['description'],
+      nombrePieces: json['nombre_pieces']?.toString(), // ex: "F3"
 
-      loyerMensuel: double.tryParse(rawLoyer?.toString() ?? '0') ?? 0.0,
+      loyerMensuel: double.tryParse(
+        json['loyer_mensuel']?.toString() ?? '0',
+      ) ?? 0.0,
 
-      proprieteId: int.tryParse(json['propriete_id']?.toString() ?? '0') ?? 0,
+      proprieteId: int.tryParse(
+          (json['propriete_id'] ?? json['id_propriete'])?.toString() ?? '0'
+      ) ?? 0,
 
-      // ✅ C'est ici que la magie opère pour ton statut "Occupé par défaut"
-      disponible: isAvailable,
+      statutPublication: json['statut_publication']?.toString(),
 
-      propriete: json['propriete'] != null
-          ? {
-        'adresse': json['propriete']['adresse']?.toString() ?? '',
-        'ville': json['propriete']['ville']?.toString() ?? '',
-        'commune': json['propriete']['commune']?.toString() ?? '',
-      }
-          : null,
+      disponible: json['statut_occupe'] == 'disponible',
 
-      photos: json['photos'] != null && (json['photos'] is List)
-          ? (json['photos'] as List)
-          .map((photoJson) => Photo.fromJson(photoJson))
-          .toList()
-          : null,
+      nbrChambres: int.tryParse(
+        json['chambres']?.toString() ?? '0',
+      ) ?? 0,
 
-      distance: double.tryParse(json['distance']?.toString() ?? ''),
+      sdb: int.tryParse(
+        json['sdb']?.toString() ?? '0',
+      ) ?? 0,
 
-
-      // 🔹 Nouveau : lien direct avec `photo_principale` de la Resource
       photoPrincipaleUrl: json['photo_principale']?.toString(),
+
+      photos: (json['photos'] as List?)
+          ?.map((p) => Photo.fromJson(p))
+          .toList(),
+
+      propriete: {
+        'adresse': json['adresse']?.toString() ?? '',
+        'commune': json['commune']?.toString() ?? '',
+      },
     );
   }
+
 
   Photo? get photoPrincipale {
     if (photos == null || photos!.isEmpty) return null;
@@ -127,7 +127,10 @@ class Logement {
     }
   }
 
-  String get loyerFormat => '${loyerMensuel.toStringAsFixed(0)} FCFA';
+  String get loyerFormat {
+    final formatter = NumberFormat('#,###', 'fr_FR');
+    return '${formatter.format(loyerMensuel)} FCFA';
+  }
   String get superficieFormat => '${superficie.toStringAsFixed(0)} m²';
   String get nombrePiecesFormat {
     if (type.toLowerCase() == 'studio') return 'Studio';

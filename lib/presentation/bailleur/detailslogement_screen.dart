@@ -1,7 +1,8 @@
-// lib/screens/LogementDetailScreen.dart
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:luwaas/data/model/logements.dart';
+import 'package:luwaas/data/model/photos.dart';
 import '../../presentation/provider/LogementProvider.dart';
 
 class LogementDetailScreen extends StatefulWidget {
@@ -23,7 +24,11 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _pageController = PageController(
+      initialPage: 0,
+      viewportFraction: 1.0,
+      keepPage: true,
+    );
   }
 
   @override
@@ -32,11 +37,22 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
     super.dispose();
   }
 
+  // ============================================
+  // 🔄 MÉTHODES DE GESTION
+  // ============================================
+
   Future<void> _publierLogement() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Publier le logement'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.publish, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Publier le logement'),
+          ],
+        ),
         content: const Text(
           'Ce logement sera visible par tous les locataires. Voulez-vous continuer ?',
         ),
@@ -58,29 +74,25 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
     );
 
     if (confirm == true && widget.logement.id != null) {
-      await context.read<LogementProvider>().publierLogement(
-        proprieteId: widget.logement.proprieteId,
-        logementId: widget.logement.id!,
-      );
-
-      if (!mounted) return;
-
-      final provider = context.read<LogementProvider>();
-      if (provider.hasError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.errorMessage ?? 'Erreur'),
-            backgroundColor: Colors.red,
-          ),
+      try {
+        await context.read<LogementProvider>().publierLogement(
+          proprieteId: widget.logement.proprieteId,
+          logementId: widget.logement.id!,
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Logement publié avec succès'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true); // Retourner avec succès
+
+        if (!mounted) return;
+
+        final provider = context.read<LogementProvider>();
+        if (provider.hasError) {
+          _showErrorSnackBar(
+              provider.errorMessage ?? 'Erreur lors de la publication');
+        } else {
+          _showSuccessSnackBar('✅ Logement publié avec succès');
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        _showErrorSnackBar('Erreur inattendue: ${e.toString()}');
       }
     }
   }
@@ -89,7 +101,14 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer le logement'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Supprimer le logement'),
+          ],
+        ),
         content: const Text(
           'Cette action est irréversible. Voulez-vous vraiment supprimer ce logement ?',
         ),
@@ -111,43 +130,68 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
     );
 
     if (confirm == true && widget.logement.id != null) {
-      await context.read<LogementProvider>().deleteLogement(
-        proprieteId: widget.logement.proprieteId,
-        logementId: widget.logement.id!,
-      );
-
-      if (!mounted) return;
-
-      final provider = context.read<LogementProvider>();
-      if (provider.hasError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.errorMessage ?? 'Erreur'),
-            backgroundColor: Colors.red,
-          ),
+      try {
+        await context.read<LogementProvider>().deleteLogement(
+          proprieteId: widget.logement.proprieteId,
+          logementId: widget.logement.id!,
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logement supprimé'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        Navigator.pop(context, true); // Retourner avec succès
+
+        if (!mounted) return;
+
+        final provider = context.read<LogementProvider>();
+        if (provider.hasError) {
+          _showErrorSnackBar(
+              provider.errorMessage ?? 'Erreur lors de la suppression');
+        } else {
+          _showSuccessSnackBar('Logement supprimé');
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        _showErrorSnackBar('Erreur inattendue: ${e.toString()}');
       }
     }
   }
 
   void _modifierLogement() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fonctionnalité à venir')),
+      const SnackBar(
+        content: Text('Fonctionnalité à venir'),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ============================================
+  // 🎨 BUILD UI
+  // ============================================
+
   @override
   Widget build(BuildContext context) {
-    final photos = widget.logement.photos ?? [];
-    final hasPhotos = photos.isNotEmpty;
+    final photos = widget.logement.photos;
+    final hasPhotos = photos != null && photos.isNotEmpty;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -163,7 +207,8 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
 
           return CustomScrollView(
             slivers: [
-              // AppBar avec image
+
+              // 📸 GALERIE PHOTOS - HAUTEUR FIXE POUR PERMETTRE LE SWIPE
               SliverAppBar(
                 expandedHeight: 300,
                 pinned: true,
@@ -174,91 +219,26 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.9),
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 8,
+                        ),
+                      ],
                     ),
                     child: const Icon(Icons.arrow_back, color: Colors.black),
                   ),
                   onPressed: () => Navigator.pop(context),
                 ),
+                // ✅ SOLUTION: Wrapper le PageView dans un Container avec une hauteur fixe
                 flexibleSpace: FlexibleSpaceBar(
                   background: hasPhotos
-                      ? Stack(
-                    children: [
-                      PageView.builder(
-                        controller: _pageController,
-                        onPageChanged: (index) {
-                          setState(() {
-                            _currentPhotoIndex = index;
-                          });
-                        },
-                        itemCount: photos.length,
-                        itemBuilder: (context, index) {
-                          return Image.network(
-                            photos[index].url,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey[300],
-                                child: Icon(
-                                  Icons.home,
-                                  size: 100,
-                                  color: Colors.grey[400],
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.3),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (photos.length > 1)
-                        Positioned(
-                          bottom: 16,
-                          right: 16,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${_currentPhotoIndex + 1}/${photos.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  )
-                      : Container(
-                    color: Colors.grey[300],
-                    child: Icon(
-                      Icons.home,
-                      size: 100,
-                      color: Colors.grey[400],
-                    ),
-                  ),
+                      ? _buildPhotoGallery(photos)
+                      : _buildPlaceholderImage(),
                 ),
               ),
 
-              // Contenu
+              // 📄 CONTENU DU LOGEMENT
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -280,16 +260,18 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              // Affiche le numéro s'il existe, sinon le nombre de pièces
-                              widget.logement.numero!= null
-                                  ? 'Logement ${widget.logement.numero}'
-                                  : widget.logement.nombrePiecesFormat,
+                              widget.logement.numero != null &&
+                                  widget.logement.numero!.isNotEmpty
+                                  ? widget.logement.titreAffiche ?? ''
+                                  : widget.logement.loyerFormat,
                               style: const TextStyle(
-                                fontSize: 24, // Réduit un peu pour éviter débordement
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -300,10 +282,11 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              widget.logement.type,
+                              widget.logement.type.toUpperCase(),
                               style: const TextStyle(
                                 color: Color(0xFF1E3A8A),
                                 fontWeight: FontWeight.bold,
+                                fontSize: 12,
                               ),
                             ),
                           ),
@@ -362,8 +345,207 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
     );
   }
 
+  // ============================================
+  // 📸 GALERIE PHOTOS OPTIMISÉE POUR LE SWIPE
+  // ============================================
+
+  Widget _buildPhotoGallery(List<Photo> photos) {
+    return Stack(
+      children: [
+        // ✅ SOLUTION 1: Utiliser un SizedBox pour donner une hauteur fixe
+        SizedBox(
+          height: 300, // Hauteur fixe pour éviter les conflits
+          child: PageView.builder(
+            controller: _pageController,
+            // ✅ SOLUTION 2: Ajouter NeverScrollableScrollPhysics si conflit persiste
+            // Sinon, utiliser BouncingScrollPhysics pour un effet naturel
+            physics: const ClampingScrollPhysics(), // ou BouncingScrollPhysics()
+            onPageChanged: (index) {
+              setState(() {
+                _currentPhotoIndex = index;
+              });
+            },
+            itemCount: photos.length,
+            itemBuilder: (context, index) {
+              final Photo photo = photos[index];
+              final String imageUrl = photo.url;
+
+              return CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+
+                // Pendant le chargement
+                placeholder: (context, url) => Container(
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF1E3A8A),
+                    ),
+                  ),
+                ),
+
+                // En cas d'erreur
+                errorWidget: (context, url, error) {
+                  print('❌ Erreur chargement image: $url');
+                  print('   Erreur: $error');
+                  return Container(
+                    color: Colors.grey[300],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image,
+                          size: 60,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Image non disponible',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+
+        // Dégradé léger pour lisibilité
+        Positioned.fill(
+          child: IgnorePointer( // ✅ SOLUTION 3: Ignorer les touches pour ne pas bloquer le swipe
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.3),
+                  ],
+                  stops: const [0.0, 0.7, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Indicateur numérique (1/5)
+        if (photos.length > 1)
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: IgnorePointer( // ✅ Ne pas bloquer le swipe
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.image,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${_currentPhotoIndex + 1} / ${photos.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        // Indicateurs de points (dots)
+        if (photos.length > 1 && photos.length <= 6)
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: IgnorePointer( // ✅ Ne pas bloquer le swipe
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  photos.length,
+                      (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: _currentPhotoIndex == index ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _currentPhotoIndex == index
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ============================================
+  // 🖼️ IMAGE PLACEHOLDER
+  // ============================================
+
+  Widget _buildPlaceholderImage() {
+    return Container(
+      color: Colors.grey[300],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.home_outlined,
+            size: 100,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Aucune photo disponible',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================
+  // 🏷️ BADGES & CARACTÉRISTIQUES
+  // ============================================
+
   Widget _buildStatusBadge() {
-    // ✅ CORRECTION : Utilisation du vrai statut
     final isPublie = widget.logement.statutPublication == 'publie';
 
     return Container(
@@ -401,7 +583,7 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
   }
 
   Widget _buildDisponibiliteBadge() {
-    final isDisponible = widget.logement.disponible ?? true;
+    final isDisponible = true;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -443,23 +625,34 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
       ),
       child: Column(
         children: [
-          // ✅ Ligne 1 : Numéro (si dispo) et Superficie
           Row(
             children: [
-              if (widget.logement.numero != null && widget.logement.numero!.isNotEmpty) ...[
-                Expanded(
-                  child: _buildCaracteristiqueItem(
-                    Icons.door_front_door_outlined,
-                    'Porte N°',
-                    widget.logement.numero!,
-                  ),
+              Expanded(
+                child: _buildCaracteristiqueItem(
+                  Icons.bed_outlined,
+                  'Chambres',
+                  '${widget.logement.nbrChambres}',
                 ),
-                Container(width: 1, height: 40, color: Colors.grey[300]),
-              ],
-
+              ),
+              Container(width: 1, height: 40, color: Colors.grey[300]),
+              Expanded(
+                child: _buildCaracteristiqueItem(
+                  Icons.bathroom_outlined,
+                  'Toilettes',
+                  '${widget.logement.sdb}',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Divider(color: Colors.grey[200], height: 1),
+          const SizedBox(height: 16),
+          Row(
+            children: [
               Expanded(
                 child: _buildCaracteristiqueItem(
                   Icons.square_foot,
@@ -467,54 +660,61 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
                   widget.logement.superficieFormat,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Divider(color: Colors.grey[300], height: 1),
-          const SizedBox(height: 16),
-
-          // ✅ Ligne 2 : Pièces et Meublé
-          Row(
-            children: [
-              Expanded(
-                child: _buildCaracteristiqueItem(
-                  Icons.meeting_room,
-                  'Pièces',
-                  '${widget.logement.nombrePieces}',
-                ),
-              ),
               Container(width: 1, height: 40, color: Colors.grey[300]),
               Expanded(
                 child: _buildCaracteristiqueItem(
                   widget.logement.estMeuble
                       ? Icons.weekend
-                      : Icons.bed_outlined,
+                      : Icons.weekend_outlined,
                   'Meublé',
                   widget.logement.estMeuble ? 'Oui' : 'Non',
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 16),
-          Divider(color: Colors.grey[300], height: 1),
+          Divider(color: Colors.grey[200], height: 1),
           const SizedBox(height: 16),
-
-          // ✅ Ligne 3 : État
           Row(
             children: [
               Expanded(
                 child: _buildCaracteristiqueItem(
-                  Icons.star_outline,
+                  Icons.check_circle_outline,
                   'État',
-                  widget.logement.etat,
+                  _formatEtat(widget.logement.etat),
                 ),
               ),
+              if (widget.logement.numero != null &&
+                  widget.logement.numero!.isNotEmpty) ...[
+                Container(width: 1, height: 40, color: Colors.grey[300]),
+                Expanded(
+                  child: _buildCaracteristiqueItem(
+                    Icons.door_front_door_outlined,
+                    'Porte',
+                    widget.logement.numero!,
+                  ),
+                ),
+              ],
             ],
-          )
+          ),
         ],
       ),
     );
+  }
+
+  String _formatEtat(String etat) {
+    switch (etat.toLowerCase()) {
+      case 'excellent':
+        return 'Excellent';
+      case 'bon':
+        return 'Bon';
+      case 'moyen':
+        return 'Moyen';
+      case 'renovation_requise':
+        return 'À rénover';
+      default:
+        return etat;
+    }
   }
 
   Widget _buildCaracteristiqueItem(IconData icon, String label, String value) {
@@ -537,6 +737,7 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
             fontWeight: FontWeight.bold,
           ),
           textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
@@ -577,7 +778,6 @@ class _LogementDetailScreenState extends State<LogementDetailScreen> {
   }
 
   Widget _buildActionButtons() {
-    // ✅ CORRECTION : Utilisation du vrai statut
     final isPublie = widget.logement.statutPublication == 'publie';
 
     return Container(

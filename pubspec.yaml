@@ -33,6 +33,9 @@ dependencies:
   http: ^1.1.0
   flutter_svg: ^2.0.9
   dio: ^5.4.3
+  wechat_assets_picker: ^10.1.0 #
+  photo_manager: ^3.5.0
+
 
 
   # Localisation
@@ -43,6 +46,7 @@ dependencies:
   cloud_firestore: ^5.5.0
   firebase_auth: ^5.3.4
   intl: ^0.19.0  # Pour afficher la date (ex: "Il y a 5 min")
+
 
 
     # Paiements

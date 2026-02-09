@@ -9,7 +9,7 @@ class LogementRemoteDataSource {
   late final Dio dio;
 
   // Base URL de ton API Laravel
-  static const String _baseUrl = 'http://192.168.1.33:8000/api';
+  static const String _baseUrl = 'http://192.168.1.15:8000/api';
 
   LogementRemoteDataSource() {
     dio = Dio(
@@ -153,7 +153,18 @@ class LogementRemoteDataSource {
         '/proprietaire/mes-logements/publies',
       );
 
-      final List data = response.data;
+      // ✅ Gère les deux cas : List directe OU Map avec 'data'
+      final dynamic body = response.data;
+
+      List<dynamic> data;
+      if (body is List) {
+        data = body;
+      } else if (body is Map && body.containsKey('data')) {
+        data = body['data'];
+      } else {
+        data = [];
+      }
+
       return data.map((json) => Logement.fromJson(json)).toList();
     } on DioException catch (e) {
       if (e.response != null) {
@@ -163,6 +174,7 @@ class LogementRemoteDataSource {
       throw Exception('Erreur réseau: ${e.message}');
     }
   }
+
 
   /// Mettre à jour le statut de publication d'un logement
   /// PATCH /api/proprietaire/proprietes/{proprieteId}/logements/{id}/status
@@ -256,15 +268,21 @@ class LogementRemoteDataSource {
   }
 
   /// Rechercher des logements à proximité (pour locataire)
-  /// GET /api/locataire/logements/nearby
+  /// GET /api/logements/nearby (route publique)
   Future<List<Logement>> searchNearby({
     required double lat,
     required double lng,
     double radius = 10,
   }) async {
     try {
+      print("═════════════════════════════════════");
+      print("📍 RECHERCHE PROXIMITÉ");
+      print("🌐 URL: $_baseUrl/logements/nearby");
+      print("📊 Lat: $lat, Lng: $lng, Rayon: $radius km");
+      print("═════════════════════════════════════");
+
       final response = await dio.get(
-        '/locataire/logements/nearby',
+        '/logements/nearby',
         queryParameters: {
           'lat': lat,
           'lng': lng,
@@ -272,19 +290,66 @@ class LogementRemoteDataSource {
         },
       );
 
-      final List data = response.data;
-      return data.map((json) => Logement.fromJson(json)).toList();
+      print("✅ Réponse reçue !");
+      print("📦 Status: ${response.statusCode}");
+      print("📦 Type: ${response.data.runtimeType}");
+
+      // ✅ CORRECTION : Gérer le format {data: [...]}
+      final dynamic body = response.data;
+
+      List<dynamic> data;
+      if (body is List) {
+        // Format direct: [...]
+        data = body;
+      } else if (body is Map && body.containsKey('data')) {
+        // Format enveloppe: {data: [...]}
+        data = body['data'] as List;
+      } else {
+        print("❌ Format inconnu: $body");
+        return [];
+      }
+
+      print("📊 ${data.length} logements trouvés");
+
+      if (data.isEmpty) {
+        print("⚠️ Aucun logement dans ce rayon");
+        return [];
+      }
+
+      final logements = data.map((json) {
+        try {
+          return Logement.fromJson(json);
+        } catch (e) {
+          print("❌ Erreur parsing: $e");
+          print("📄 JSON: $json");
+          rethrow;
+        }
+      }).toList();
+
+      print("✅ ${logements.length} logements parsés");
+      print("═════════════════════════════════════");
+
+      return logements;
     } on DioException catch (e) {
+      print("═════════════════════════════════════");
+      print("❌ ERREUR DIO (searchNearby)");
+      print("Status: ${e.response?.statusCode}");
+      print("Message: ${e.response?.data}");
+      print("═════════════════════════════════════");
+
       if (e.response != null) {
         throw Exception(
             e.response?.data['message'] ?? 'Erreur lors de la recherche');
       }
       throw Exception('Erreur réseau: ${e.message}');
+    } catch (e) {
+      print("❌ ERREUR INATTENDUE (searchNearby): $e");
+      rethrow;
     }
   }
 
   /// Rechercher des logements par zone (pour locataire)
-  /// GET /api/locataire/logements/search
+  /// GET /api/logements/search (route publique)
   Future<List<Logement>> searchByZone({
     int? regionId,
     int? departementId,
@@ -304,19 +369,79 @@ class LogementRemoteDataSource {
       if (nombrePieces != null) queryParams['nombre_pieces'] = nombrePieces;
       if (prixMax != null) queryParams['prix_max'] = prixMax;
 
+      print("═════════════════════════════════════");
+      print("🔍 RECHERCHE LOGEMENTS PAR ZONE");
+      print("🌐 URL: $_baseUrl/logements/search");
+      print("📊 Params: $queryParams");
+      print("═════════════════════════════════════");
+
       final response = await dio.get(
-        '/locataire/logements/search',
+        '/logements/search',
         queryParameters: queryParams,
       );
 
-      final List data = response.data;
-      return data.map((json) => Logement.fromJson(json)).toList();
+      print("✅ Réponse reçue !");
+      print("📦 Status: ${response.statusCode}");
+      print("📦 Type: ${response.data.runtimeType}");
+
+      // ✅ CORRECTION : Gérer le format {data: [...]}
+      final dynamic body = response.data;
+
+      List<dynamic> data;
+      if (body is List) {
+        // Format direct: [...]
+        data = body;
+      } else if (body is Map && body.containsKey('data')) {
+        // Format enveloppe: {data: [...]}
+        data = body['data'] as List;
+        print("📦 Extraction depuis la clé 'data'");
+      } else {
+        print("❌ Format inconnu: $body");
+        return [];
+      }
+
+      print("📊 ${data.length} logements trouvés");
+
+      if (data.isEmpty) {
+        print("⚠️ Liste vide retournée par l'API");
+        print("💡 Vérifiez si des logements existent pour ces critères");
+        return [];
+      }
+
+      final logements = data.map((json) {
+        try {
+          return Logement.fromJson(json);
+        } catch (e) {
+          print("❌ Erreur parsing logement: $e");
+          print("📄 JSON problématique: $json");
+          rethrow;
+        }
+      }).toList();
+
+      print("✅ ${logements.length} logements parsés avec succès");
+      print("═════════════════════════════════════");
+
+      return logements;
     } on DioException catch (e) {
+      print("═════════════════════════════════════");
+      print("❌ ERREUR DIO (searchByZone)");
+      print("Status: ${e.response?.statusCode}");
+      print("Message: ${e.response?.data}");
+      print("Type: ${e.type}");
+      print("═════════════════════════════════════");
+
       if (e.response != null) {
         throw Exception(
             e.response?.data['message'] ?? 'Erreur lors de la recherche');
       }
       throw Exception('Erreur réseau: ${e.message}');
+    } catch (e) {
+      print("═════════════════════════════════════");
+      print("❌ ERREUR INATTENDUE (searchByZone)");
+      print("Type: ${e.runtimeType}");
+      print("Message: $e");
+      print("═════════════════════════════════════");
+      rethrow;
     }
   }
 

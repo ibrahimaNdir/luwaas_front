@@ -5,7 +5,7 @@ import '../../data/model/paiements.dart';
 
 class PaiementDataSource {
   // ⚠️ Remplace par ton IP réelle si tu testes sur téléphone physique (ex: 192.168.x.x)
-  final String baseUrl = "http://192.168.1.33:8000/api";
+  final String baseUrl = "http://192.168.1.15:8000/api";
 
   /// Récupère le token stocké
   Future<String?> _getToken() async {

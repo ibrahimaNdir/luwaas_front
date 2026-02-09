@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart'; // ✅ pour le GPS
 import '../../data/model/logements.dart';
@@ -97,7 +98,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   /// En-tête avec logo
   Widget _buildHeader() {
-    return const Row(
+    return  Row(
       children: [
         Text(
           "LUWAAS",
@@ -108,8 +109,17 @@ class _SearchScreenState extends State<SearchScreen> {
             letterSpacing: 1.2,
           ),
         ),
-        SizedBox(width: 8),
-        Icon(Icons.home_work_outlined, color: Color(0xFF1E3E8A), size: 28),
+        SizedBox(width: 5),
+        SvgPicture.asset(
+          'assets/icons/house_welcome.svg',
+          width: 30,
+          height: 30,
+          colorFilter: const ColorFilter.mode(
+            Color(0xFF1E3A8A),
+            BlendMode.srcIn,
+          ),
+        ),
+
 
       ],
     );
@@ -394,7 +404,20 @@ class _LogementHorizontalCard extends StatelessWidget {
 
   /// Image du logement avec gestion d'erreur
   Widget _buildImage() {
-    final photoUrl = logement.photoPrincipale?.url;
+    String? imageUrl;
+
+    // 1. Photo principale depuis photoPrincipaleUrl
+    if (logement.photoPrincipaleUrl != null && logement.photoPrincipaleUrl!.isNotEmpty) {
+      imageUrl = logement.photoPrincipaleUrl;
+    }
+    // 2. Photo principale depuis la liste photos
+    else if (logement.photos != null) {
+      imageUrl = logement.photoPrincipaleUrl;
+    }
+    // 3. Première photo de la liste
+    else if (logement.photos != null && logement.photos!.isNotEmpty) {
+      imageUrl = logement.photos![0].url;
+    }
 
     return Container(
       width: 100,
@@ -403,11 +426,11 @@ class _LogementHorizontalCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         color: Colors.grey[300],
       ),
-      child: photoUrl != null
+      child: imageUrl != null
           ? ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.network(
-          photoUrl,
+          imageUrl,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Icon(Icons.broken_image, color: Colors.grey[500]);
@@ -436,7 +459,7 @@ class _LogementHorizontalCard extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          "${logement.loyerFormat}/mois",
+          "${logement.titreAffiche}",
           style: const TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 15,
@@ -447,7 +470,7 @@ class _LogementHorizontalCard extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          "${logement.type} - ${logement.nombrePiecesFormat}",
+          "${logement.loyerFormat}",
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,

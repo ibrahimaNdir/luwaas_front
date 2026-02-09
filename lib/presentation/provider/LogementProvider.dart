@@ -100,15 +100,17 @@ class LogementProvider extends ChangeNotifier {
           numero: created.numero,
           type: created.type,
           superficie: created.superficie,
-          nombrePieces: created.nombrePieces,
+          nbrChambres: created.nbrChambres,
           estMeuble: created.estMeuble,
           etat: created.etat,
           description: created.description,
           loyerMensuel: created.loyerMensuel,
           proprieteId: created.proprieteId,
           propriete: created.propriete,
-          photos: photos,
+          photos: created.photos,
           disponible: created.disponible,
+          nombrePieces: created.nombrePieces,
+          sdb: created.sdb
         );
       } else {
         _createdLogement = created;

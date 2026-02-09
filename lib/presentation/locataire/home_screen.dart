@@ -93,7 +93,7 @@ class _TopHeaderState extends State<_TopHeader> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // En-tête : Bonjour + Cloche
+          // ✅ En-tête : Bonjour + Cloche + Profil
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -123,11 +123,48 @@ class _TopHeaderState extends State<_TopHeader> {
                   ],
                 ),
               ),
+              // ✅ Icônes à droite : Notifications + Profil
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: GestureDetector(
-                  onTap: () {},
-                  child: const Icon(Icons.notifications, color: Colors.white, size: 22),
+                child: Row(
+                  children: [
+                    // Icône Notifications
+                    GestureDetector(
+                      onTap: () {
+                        // Action pour les notifications
+                        Navigator.pushNamed(context, '/notif');
+                      },
+                      child: const Icon(
+                        Icons.notifications_outlined,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // ✅ Icône Profil utilisateur
+                    GestureDetector(
+                      onTap: () {
+                        // Navigation vers la page profil
+                        Navigator.pushNamed(context, '/profile');
+                        // Ou affiche un menu déroulant avec les infos
+                        // _showProfileMenu(context);
+                      },
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -185,7 +222,6 @@ class _TopHeaderState extends State<_TopHeader> {
 
               // Cas 3 : A un Bail -> Affiche le loyer (Prend le 1er bail)
               final bail = bailProvider.bauxLocataire.first;
-              // Assure-toi que ton modèle Bail a les champs 'montantLoyer'
 
               return Container(
                 width: double.infinity,
@@ -210,16 +246,16 @@ class _TopHeaderState extends State<_TopHeader> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "${bail.montantLoyer} FCFA", // DYNAMIQUE !
+                            "${bail.montantLoyer} FCFA",
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 28, // Un peu plus petit pour que "FCFA" rentre
+                              fontSize: 28,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           const SizedBox(height: 6),
                           const Text(
-                            "Échéance le 05 du mois", // Tu pourras dynamiser la date aussi
+                            "Échéance le 05 du mois",
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
@@ -257,6 +293,7 @@ class _TopHeaderState extends State<_TopHeader> {
       ),
     );
   }
+
 }
 
 

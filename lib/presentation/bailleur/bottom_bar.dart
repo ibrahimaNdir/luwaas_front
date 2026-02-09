@@ -11,37 +11,57 @@ class BottomBar extends StatelessWidget {
     required this.onTap,
   }) : super(key: key);
 
+  // Méthode pour créer les icônes avec changement de couleur
+  Widget _buildIcon(String assetPath, int index) {
+    final isSelected = currentIndex == index;
+
+    return SvgPicture.asset(
+      assetPath,
+      width: 24,
+      height: 24,
+      colorFilter: ColorFilter.mode(
+        isSelected
+            ? const Color(0xFF2E4B8C)  // Bleu si sélectionné
+            : const Color(0xFF9E9E9E),  // Gris si non sélectionné
+        BlendMode.srcIn,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       currentIndex: currentIndex,
       onTap: onTap,
-      selectedItemColor: const Color(0xFF2E4B8C), // navy color
-      backgroundColor: const Color(0xFFDCD9D9), // #979797 avec 4% d'opacité
+      selectedItemColor: const Color(0xFF2E4B8C),
+      unselectedItemColor: const Color(0xFF9E9E9E),
+      backgroundColor: const Color(0xFFFFFFFF),
+      selectedFontSize: 12,
+      unselectedFontSize: 12,
       items: [
         BottomNavigationBarItem(
-          icon: SvgPicture.asset("assets/icons/house_welcome.svg", width: 24),
+          icon: _buildIcon("assets/icons/house_welcome.svg", 0),
           label: "Accueil",
         ),
         BottomNavigationBarItem(
-          icon: SvgPicture.asset("assets/icons/house.svg", width: 24),
-          label: "Propriétés",
+          icon: _buildIcon("assets/icons/house.svg", 1),
+          label: "Biens",
         ),
         BottomNavigationBarItem(
-          icon: SvgPicture.asset("assets/icons/dashboard.svg", width: 24),
-          label: "Dashboard",
+          icon: _buildIcon("assets/icons/search.svg", 2),
+          label: "Logements",
         ),
         BottomNavigationBarItem(
-          icon: SvgPicture.asset("assets/icons/users.svg", width: 24),
-          label: "Locataire",
+          icon: _buildIcon("assets/icons/credit.svg", 3),
+          label: "Paiements",
         ),
         BottomNavigationBarItem(
-          icon: SvgPicture.asset("assets/icons/bails.svg", width: 24),
+          icon: _buildIcon("assets/icons/file.svg", 4),
           label: "Bails",
         ),
         BottomNavigationBarItem(
-          icon: SvgPicture.asset("assets/icons/user.svg", width: 24),
+          icon: _buildIcon("assets/icons/user.svg", 5),
           label: "Compte",
         ),
       ],

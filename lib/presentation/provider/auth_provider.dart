@@ -1,12 +1,15 @@
-
-import 'package:luwaas/services/fcm_service.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/model/users.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _repository = AuthRepository();
-  final FcmService _fcmService = FcmService();
+  final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   User? _user;
   bool _isLoading = false;
@@ -16,8 +19,6 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _user != null;
-
-  // ✅ Getter pour récupérer le rôle de l'utilisateur
   String? get userRole => _user?.userType;
 
   // Register
@@ -35,7 +36,8 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _user = await _repository.register(
+      // 1️⃣ Appel à Laravel (retourne user + firebase_token)
+      final result = await _repository.register(
         prenom: prenom,
         nom: nom,
         email: email,
@@ -44,12 +46,17 @@ class AuthProvider extends ChangeNotifier {
         cni: cni,
         userType: userType,
       );
-      _errorMessage = null;
 
-      if (_user?.telephone != null && _user!.telephone!.isNotEmpty) {
-        await _fcmService.saveTokenForPhone(_user!.telephone!);
-        _fcmService.listenTokenRefresh(_user!.telephone!);
-      }
+      _user = result['user'];
+      final firebaseToken = result['firebase_token'];
+
+      // 2️⃣ Authentification avec Firebase Auth via Custom Token
+      await _signInWithFirebase(firebaseToken);
+
+      // 3️⃣ Maintenant on peut enregistrer le token FCM dans Firestore
+      await _saveFCMToken(_user!.id.toString());
+
+      _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString();
       _user = null;
@@ -69,15 +76,22 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _user = await _repository.login(
+      // 1️⃣ Appel à Laravel (retourne user + firebase_token)
+      final result = await _repository.login(
         login: login,
         password: password,
       );
+
+      _user = result['user'];
+      final firebaseToken = result['firebase_token'];
+
+      // 2️⃣ Authentification avec Firebase Auth via Custom Token
+      await _signInWithFirebase(firebaseToken);
+
+      // 3️⃣ Maintenant on peut enregistrer le token FCM dans Firestore
+      await _saveFCMToken(_user!.id.toString());
+
       _errorMessage = null;
-      if (_user?.telephone != null && _user!.telephone!.isNotEmpty) {
-        await _fcmService.saveTokenForPhone(_user!.telephone!);
-        _fcmService.listenTokenRefresh(_user!.telephone!);
-      }
     } catch (e) {
       _errorMessage = e.toString();
       _user = null;
@@ -87,6 +101,40 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 🔐 Méthode privée: Authentification Firebase avec Custom Token
+  Future<void> _signInWithFirebase(String customToken) async {
+    try {
+      await _firebaseAuth.signInWithCustomToken(customToken);
+      print('✅ Authentifié avec Firebase Auth');
+    } catch (e) {
+      print('❌ Erreur Firebase Auth: $e');
+      throw Exception('Erreur d\'authentification Firebase: $e');
+    }
+  }
+
+  // 🔔 Méthode privée: Enregistrer le token FCM dans Firestore
+  Future<void> _saveFCMToken(String userId) async {
+    try {
+      final token = await _messaging.getToken();
+
+      if (token != null) {
+        await _firestore
+            .collection('device_tokens')
+            .doc(userId)  // Utilise l'userId comme document ID
+            .set({
+          'token': token,
+          'timestamp': FieldValue.serverTimestamp(),
+          'platform': 'android',  // ou détecte iOS si besoin
+        }, SetOptions(merge: true));
+
+        print('✅ Token FCM enregistré dans Firestore');
+      }
+    } catch (e) {
+      print('❌ Erreur enregistrement FCM: $e');
+      // N'empêche pas la connexion si l'enregistrement du token échoue
+    }
+  }
+
   // Logout
   Future<void> logout() async {
     _isLoading = true;
@@ -94,6 +142,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _repository.logout();
+      await _firebaseAuth.signOut();  // ✅ Déconnexion Firebase aussi
       _user = null;
       _errorMessage = null;
     } catch (e) {

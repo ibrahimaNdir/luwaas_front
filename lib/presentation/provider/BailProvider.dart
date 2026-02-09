@@ -81,20 +81,29 @@ class BailProvider with ChangeNotifier {
 
   /// 2. LISTER LES BAUX DU BAILLEUR
   Future<void> fetchBauxBailleur() async {
+    debugPrint("🔵 Début fetchBauxBailleur");
     _isLoadingBauxBailleur = true;
     _error = null;
     notifyListeners();
 
     try {
       _bauxBailleur = await repository.getBauxBailleur();
+      debugPrint("✅ Baux récupérés: ${_bauxBailleur.length} éléments");
+
+      // Affichez le premier bail pour vérifier
+      if (_bauxBailleur.isNotEmpty) {
+        debugPrint("Premier bail: ${_bauxBailleur[0].locataire}");
+      }
     } catch (e) {
       _error = "Impossible de charger les baux bailleur.";
-      print("Erreur Provider fetchBauxBailleur: $e");
+      debugPrint("❌ Erreur Provider fetchBauxBailleur: $e");
     } finally {
       _isLoadingBauxBailleur = false;
+      debugPrint("🔵 Fin fetchBauxBailleur - isLoading: $_isLoadingBauxBailleur");
       notifyListeners();
     }
   }
+
 
   /// 3. LISTER LES BAUX DU LOCATAIRE (Écran Accueil / Payer)
   /// Récupère maintenant des objets 'Bail' complets avec montant_loyer

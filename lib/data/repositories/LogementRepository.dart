@@ -59,15 +59,22 @@ class LogementRepository {
         numero: created.numero,
         type: created.type,
         superficie: created.superficie,
-        nombrePieces: created.nombrePieces,
+        nbrChambres: created.nbrChambres,
         estMeuble: created.estMeuble,
         etat: created.etat,
         description: created.description,
         loyerMensuel: created.loyerMensuel,
         proprieteId: created.proprieteId,
-        propriete: created.propriete,
-        photos: uploadedPhotos, // ✅ Photos ajoutées
+        photos: created.photos, // ✅ Photos ajoutées
         disponible: created.disponible,
+        sdb: created.sdb,
+        //fraisCautionTotal: created.fraisCautionTotal,
+        //moisCaution: created.moisCaution,
+        nombrePieces: created.nombrePieces,
+       // statutOccupe: created.statutOccupe,
+         // totalEntree: created.totalEntree
+
+
       );
     }
 

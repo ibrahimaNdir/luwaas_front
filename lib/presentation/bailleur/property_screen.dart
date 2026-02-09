@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../presentation/provider/PropertyProvider.dart';
 import '../../data/model/property.dart';
 import 'logement_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class PropertyScreen extends StatefulWidget {
   const PropertyScreen({super.key});
@@ -360,10 +361,11 @@ class _PropertyCard extends StatelessWidget {
                 color: Color(0xFF1E3A8A),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                Icons.home,
-                color: Colors.white,
-                size: 24,
+              child: SvgPicture.asset(
+                'assets/icons/house_welcome.svg',
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
               ),
             ),
             SizedBox(width: 16),

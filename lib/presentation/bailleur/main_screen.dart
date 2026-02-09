@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:luwaas/presentation/bailleur/logement_publie.dart';
+import 'package:provider/provider.dart'; // ✅ Ajoutez cet import
+import 'package:luwaas/presentation/provider/BailProvider.dart'; // ✅ Ajoutez cet import
 import 'bottom_bar.dart';
 import 'home_screen.dart';
 import 'property_screen.dart';
 import 'dashboard_screen.dart';
-import 'paiement_screen.dart'; // ✅ Renommé pour correspondre
+import 'logement_publie.dart';
+import 'paiement_screen.dart';
 import 'bails_screen.dart';
 import 'account_screen.dart';
 
@@ -17,15 +21,17 @@ class MainScreenBailleur extends StatefulWidget {
 class _MainScreenBailleurState extends State<MainScreenBailleur> {
   int _selectedIndex = 0;
 
-  // Liste des écrans correspondant aux items de la BottomBar
-  static const List<Widget> _screens = [
-    HomeScreen(),          // Accueil
-    PropertyScreen(),      // Propriétés
-    DashboardScreen(),     // Dashboard
-    PaymentsScreen(),      // Paiements (✅ corrigé)
-    BailScreen(),         // Bails (pluriel cohérent)
-    AccountScreen(),       // Compte
-  ];
+  // ✅ AJOUTEZ CECI
+  @override
+  void initState() {
+    super.initState();
+
+    // Charger les baux dès que le bailleur arrive sur l'écran principal
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint("🔵 MainScreenBailleur: Chargement des baux");
+      Provider.of<BailProvider>(context, listen: false).fetchBauxBailleur();
+    });
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -35,10 +41,19 @@ class _MainScreenBailleurState extends State<MainScreenBailleur> {
 
   @override
   Widget build(BuildContext context) {
+    final screens = <Widget>[
+      const HomeScreen(),
+      const PropertyScreen(),
+      const LogementPublieScreen(),
+      const PaymentsScreen(),
+      const BailScreen(),
+      const AccountScreen(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens,
+        children: screens,
       ),
       bottomNavigationBar: BottomBar(
         currentIndex: _selectedIndex,
