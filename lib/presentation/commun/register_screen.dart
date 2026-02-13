@@ -1,4 +1,3 @@
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -9,8 +8,8 @@ import '../../presentation/bailleur/home_screen.dart';
 import '../../presentation/locataire/home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  final String userType;
-  const RegisterScreen({super.key, required this.userType});
+  final String? userType; // 🆕 Optionnel maintenant
+  const RegisterScreen({super.key, this.userType});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -36,6 +35,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+
+  // 🆕 Variables pour la redirection
+  Map<String, dynamic>? _navigationArgs;
+  String? _forcedRole; // Rôle forcé (locataire si vient de demande logement)
+
+  @override
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+
+      // 🎯 Gérer les 2 formats d'arguments
+      if (args is Map<String, dynamic>) {
+        // Format Map (nouveau)
+        setState(() {
+          _navigationArgs = args;
+          _forcedRole = args['role'];
+        });
+      } else if (args is String) {
+        // Format String (ancien - pour compatibilité)
+        setState(() {
+          _forcedRole = args;
+        });
+      }
+
+      print('📍 Vient de: ${_navigationArgs?['from']}');
+      print('👤 Rôle: $_forcedRole');
+    });
+  }
 
   @override
   void dispose() {
@@ -75,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  // Inscription finale
+  // 🆕 Inscription finale MODIFIÉE
   Future<void> _terminerInscription() async {
     if (!_formKey2.currentState!.validate()) return;
 
@@ -84,10 +113,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errorMessage = null;
     });
 
-    // Obtient le provider
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     try {
+      // 🎯 Déterminer le rôle à utiliser
+      // Priorité : 1. Rôle forcé (demande logement)
+      //           2. userType du constructeur (écran de choix)
+      //           3. Défaut : 'locataire'
+      final roleToUse = _forcedRole ?? widget.userType ?? 'locataire';
+
+      print('🔑 Inscription avec rôle: $roleToUse');
+
       await authProvider.register(
         prenom: _prenomController.text.trim(),
         nom: _nomController.text.trim(),
@@ -95,36 +131,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
         telephone: _telController.text,
         cni: _cniController.text,
-        userType: widget.userType,
+        userType: roleToUse, // 🔥 Utiliser le rôle déterminé
       );
 
-      // Vérifie si l'inscription a réussi
       if (authProvider.isAuthenticated && authProvider.errorMessage == null) {
-        // ... l'inscription a réussi ...
-
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Inscription réussie !'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // 🎯 VÉRIFIER SI ON VIENT DE DetailsLogementScreen
+          if (_navigationArgs != null &&
+              _navigationArgs!['from'] == 'details-logement' &&
+              _navigationArgs!['action'] == 'demande-logement') {
 
-          // ✅ CORRECTION : Redirection intelligente selon le userType choisi au début
-          if (widget.userType == 'bailleur' ||
-              widget.userType == 'proprietaire') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const HomeScreen(),
-              ), // Ton écran Bailleur
+            // ✅ CAS 1 : Retour vers DetailsLogementScreen pour faire la demande
+            print('🔄 Inscription réussie → Retour vers DetailsLogementScreen');
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Compte créé avec succès !'),
+                backgroundColor: Colors.green,
+                duration: Duration(milliseconds: 800),
+              ),
             );
+
+            await Future.delayed(const Duration(milliseconds: 800));
+
+            if (mounted) {
+              // ✅ RETOUR avec succès (pas de pushReplacement)
+              Navigator.pop(context, true);
+            }
+
           } else {
-            Navigator.pushReplacement(
-              context,
-              // Remplace par ton écran d'accueil Locataire (ex: ClientHomeScreen)
-              MaterialPageRoute(builder: (_) => const ClientHomeScreen()),
+            // ✅ CAS 2 : Inscription normale → Redirection selon le rôle
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Inscription réussie !'),
+                backgroundColor: Colors.green,
+              ),
             );
+
+            final userRole = authProvider.userRole ?? roleToUse;
+
+            if (userRole == 'bailleur' || userRole == 'proprietaire') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const ClientHomeScreen()),
+              );
+            }
           }
         }
       } else {
@@ -167,6 +223,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 🆕 Bouton retour SI on vient de DetailsLogementScreen
+              if (_navigationArgs != null && _navigationArgs!['from'] == 'details-logement')
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2E4B8C)),
+                    onPressed: () => Navigator.pop(context, false),
+                  ),
+                ),
+
               // Logo LUWAAS
               Row(
                 children: [
@@ -190,7 +256,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 30),
+
+              // 🆕 Message si rôle forcé
+              if (_forcedRole == 'locataire')
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E4B8C).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF2E4B8C).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: Color(0xFF2E4B8C),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Création de compte locataire pour votre demande de logement',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // Titre
               const Text(
@@ -387,7 +486,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               // Titre
               const Text(
-                'Votre Numero Tel ou Email',
+                'Votre Email et Mot de passe',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -396,7 +495,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Champ Email ou Téléphone
+              // Champ Email
               const Text(
                 'Email',
                 style: TextStyle(
@@ -410,7 +509,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  hintText: 'Entrez votre email ',
+                  hintText: 'Entrez votre email',
                   hintStyle: TextStyle(color: Colors.grey.shade400),
                   enabledBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
@@ -422,23 +521,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderSide: BorderSide(color: Colors.red),
                   ),
                 ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ce champ est requis';
-                    }
-                    // Regex simple pour email
-                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                    if (!emailRegex.hasMatch(value)) {
-                      return 'Veuillez entrer un email valide';
-                    }
-                    return null;
-                  },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Ce champ est requis';
+                  }
+                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                  if (!emailRegex.hasMatch(value)) {
+                    return 'Veuillez entrer un email valide';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 32),
 
               // Champ Mot de passe
               const Text(
-                'Mots de passe',
+                'Mot de passe',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -463,9 +561,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
                       color: Colors.grey,
                     ),
                     onPressed: () {
@@ -562,24 +658,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child:
-                      _isLoading
-                          ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                          : const Text(
-                            'INSCRIPTION',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
+                  child: _isLoading
+                      ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text(
+                    'INSCRIPTION',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -594,7 +689,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   TextButton(
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.pop(context, false);
                     },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,

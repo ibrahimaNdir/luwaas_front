@@ -1,4 +1,3 @@
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -21,6 +20,25 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String? _errorMessage;
 
+  // 🆕 Variables pour gérer la redirection
+  Map<String, dynamic>? _navigationArgs;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🎯 Récupérer les arguments passés depuis DetailsLogementScreen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null) {
+        setState(() {
+          _navigationArgs = args;
+        });
+        print('📍 Vient de: ${args['from']}');
+        print('🏠 Logement ID: ${args['logementId']}');
+      }
+    });
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -28,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ✅ Fonction de connexion avec redirection selon le rôle
+  // ✅ Fonction de connexion
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -47,18 +65,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (authProvider.isAuthenticated) {
         if (mounted) {
-          // ✅ Redirection selon le rôle de l'utilisateur
-          final userRole = authProvider.userRole;
+          // 🎯 VÉRIFIER SI ON VIENT DE DetailsLogementScreen
+          if (_navigationArgs != null &&
+              _navigationArgs!['from'] == 'details-logement') {
 
-          // Ton code actuel est bon :
-          if (userRole == 'proprietaire') {
-            Navigator.pushReplacementNamed(context, '/main_bailleur');
-          } else if (userRole == 'locataire' || userRole == 'client') {
-            Navigator.pushReplacementNamed(context, '/client_home');
-          }
-          else {
-            // Si le rôle n'est pas défini, demander à l'utilisateur de choisir
-            Navigator.pushReplacementNamed(context, '/role');
+            // ✅ CAS 1 : Retour vers DetailsLogementScreen pour faire la demande
+            print('🔄 Retour vers DetailsLogementScreen');
+            Navigator.pop(context, true); // ✅ Retour avec succès
+
+          } else {
+            // ✅ CAS 2 : Connexion normale → Redirection selon le rôle
+            final userRole = authProvider.userRole;
+
+            if (userRole == 'proprietaire') {
+              Navigator.pushReplacementNamed(context, '/main_bailleur');
+            } else if (userRole == 'locataire' || userRole == 'client') {
+              Navigator.pushReplacementNamed(context, '/client_home');
+            } else {
+              Navigator.pushReplacementNamed(context, '/role');
+            }
           }
         }
       } else {
@@ -91,6 +116,33 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 🆕 Bouton retour SI on vient de DetailsLogementScreen
+                if (_navigationArgs != null &&
+                    _navigationArgs!['from'] == 'details-logement')
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () => Navigator.pop(context, false),
+                          color: const Color(0xFF2E4B8C),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Connectez-vous pour continuer',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // Logo LUWAAS
                 Row(
                   children: [
@@ -236,15 +288,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: BoxDecoration(
                       color: Colors.red.shade50,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red),
+                        const Icon(Icons.error_outline, color: Colors.red, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(color: Colors.red),
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ],
@@ -264,6 +320,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                       elevation: 0,
+                      disabledBackgroundColor: const Color(0xFF2E4B8C).withOpacity(0.6),
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -296,19 +353,32 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/role');
+                        // 🔍 DEBUG
+                        print('🔍 _navigationArgs: $_navigationArgs');
+                        print('🔍 from: ${_navigationArgs?['from']}');
+                        print('🔍 Condition: ${_navigationArgs != null && _navigationArgs!['from'] == 'details-logement'}');
+
+                        if (_navigationArgs != null &&
+                            _navigationArgs!['from'] == 'details-logement') {
+
+                          print('✅ Va vers RegisterScreen');
+                          Navigator.pushNamed(
+                            context,
+                            '/register',
+                            arguments: {
+                              'from': 'details-logement',
+                              'logementId': _navigationArgs!['logementId'],
+                              'logement': _navigationArgs!['logement'],
+                              'action': 'demande-logement',
+                              'role': 'locataire',
+                            },
+                          );
+                        } else {
+                          print('❌ Va vers RoleScreen');
+                          Navigator.pushNamed(context, '/role');
+                        }
                       },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                      ),
-                      child: const Text(
-                        'S\'inscrire',
-                        style: TextStyle(
-                          color: Color(0xFF2E4B8C),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Text('S\'inscrire'),
                     ),
                   ],
                 ),

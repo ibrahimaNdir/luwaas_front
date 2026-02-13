@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/model/logements.dart';
 import '../../presentation/provider/DemandeProvider.dart';
+import '../../presentation/provider/auth_provider.dart';
 
 class DetailsLogementScreen extends StatefulWidget {
   final Logement logement;
@@ -15,10 +16,50 @@ class DetailsLogementScreen extends StatefulWidget {
 class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
   bool _isSubmitting = false;
   int _currentPhotoIndex = 0;
+  bool _shouldSubmitAfterLogin = false; // 🆕 Flag pour soumettre après login
 
-  /// ✅ Fonction optimisée avec Provider et vérifications
+  @override
+  void initState() {
+    super.initState();
+    // 🎯 Vérifier si on revient du login après la construction du widget
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndSubmitIfAuthenticated();
+    });
+  }
+
+  /// 🎯 Vérifie si l'utilisateur est connecté et soumet la demande si nécessaire
+  void _checkAndSubmitIfAuthenticated() {
+    if (!mounted) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // ✅ Si flag activé ET user connecté → Soumettre automatiquement
+    if (_shouldSubmitAfterLogin && authProvider.isAuthenticated) {
+      _shouldSubmitAfterLogin = false; // Réinitialiser le flag
+
+      // Petit délai pour une meilleure UX
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          _demanderLogement();
+        }
+      });
+    }
+  }
+
+  /// 📤 Fonction principale pour demander un logement
   Future<void> _demanderLogement() async {
-    // 1. Vérification de l'ID avant tout
+    // 🔐 ÉTAPE 1 : Vérifier l'authentification
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    if (!authProvider.isAuthenticated) {
+      // ❌ Non connecté → Afficher dialog et rediriger vers login
+      _showLoginDialog();
+      return;
+    }
+
+    // ✅ User connecté → Continuer avec la demande
+
+    // 2. Vérification de l'ID du logement
     if (widget.logement.id == null) {
       _showSnackBar(
         message: "❌ Logement invalide",
@@ -27,27 +68,28 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
       return;
     }
 
-    // 2. Lance le chargement
+    // 3. Activer le chargement
     setState(() => _isSubmitting = true);
 
     try {
-      // 3. Appel via Provider (listen: false pour éviter les rebuilds)
+      // 4. Appel API via Provider
       final demandeProvider = Provider.of<DemandeProvider>(context, listen: false);
       final success = await demandeProvider.createDemande(widget.logement.id!);
 
       if (!mounted) return;
 
       if (success) {
-        // Succès
+        // ✅ Succès
         _showSnackBar(
           message: "✅ Demande envoyée au propriétaire !",
           isError: false,
         );
 
-        // Retour après 1 seconde
-        await Future.delayed(const Duration(seconds: 1));
+        // Retour à l'écran précédent après 1.5 secondes
+        await Future.delayed(const Duration(milliseconds: 1500));
         if (mounted) Navigator.pop(context);
       } else {
+        // ❌ Échec
         _showSnackBar(
           message: "❌ Erreur: ${demandeProvider.error ?? 'Inconnue'}",
           isError: true,
@@ -61,12 +103,132 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
         );
       }
     } finally {
-      // 4. Arrête le chargement
+      // 5. Désactiver le chargement
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  /// Helper pour afficher les SnackBars
+  /// 🔐 Dialog de demande de connexion
+  /// 🔐 Dialog de demande de connexion
+  void _showLoginDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        icon: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E3E8A).withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.lock_outline,
+            color: Color(0xFF1E3E8A),
+            size: 40,
+          ),
+        ),
+        title: const Text(
+          'Connexion requise',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        content: const Text(
+          'Vous devez vous connecter pour faire une demande de logement.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 15,
+            color: Colors.black87,
+            height: 1.5,
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
+            ),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E3E8A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 12,
+              ),
+              elevation: 0,
+            ),
+            onPressed: () async {
+              Navigator.pop(context); // Ferme le dialog
+
+              // 🎯 Activer le flag pour soumettre après login
+              setState(() => _shouldSubmitAfterLogin = true);
+
+              // 🔄 Redirection vers la page de login
+              final result = await Navigator.pushNamed(
+                context,
+                '/login',
+                arguments: {
+                  'from': 'details-logement', // ✅ Corrigé : utiliser 'redirectTo'
+                  'logementId': widget.logement.id,
+                  'logement': widget.logement,
+                },
+              );
+
+              // ✅ Si retour avec succès (user connecté)
+              if (result == true && mounted) {
+                _checkAndSubmitIfAuthenticated();
+              } else {
+                // ❌ Connexion annulée → Réinitialiser le flag
+                if (mounted) {
+                  setState(() => _shouldSubmitAfterLogin = false);
+                }
+              }
+            },
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.login, size: 18, color: Colors.white),
+                SizedBox(width: 8),
+                Text(
+                  'Se connecter',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  /// 📢 Helper pour afficher les SnackBars
   void _showSnackBar({required String message, required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -193,7 +355,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
                 colors: [
-                  Colors.black.withOpacity(0.4),
+                  Colors.black.withValues(alpha: 0.4),
                   Colors.transparent,
                 ],
               ),
@@ -218,7 +380,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
                   decoration: BoxDecoration(
                     color: _currentPhotoIndex == index
                         ? Colors.white
-                        : Colors.white.withOpacity(0.5),
+                        : Colors.white.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -234,7 +396,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -275,7 +437,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -304,7 +466,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -359,7 +521,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -402,7 +564,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -413,7 +575,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E3E8A).withOpacity(0.1),
+              color: const Color(0xFF1E3E8A).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -513,7 +675,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E3E8A).withOpacity(0.3),
+            color: const Color(0xFF1E3E8A).withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -579,7 +741,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -647,7 +809,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E3E8A).withOpacity(0.1),
+            color: const Color(0xFF1E3E8A).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
@@ -703,7 +865,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -730,7 +892,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -747,8 +909,8 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               elevation: 0,
-              disabledBackgroundColor: const Color(0xFF1E3E8A).withOpacity(0.5),
-              shadowColor: const Color(0xFF1E3E8A).withOpacity(0.3),
+              disabledBackgroundColor: const Color(0xFF1E3E8A).withValues(alpha: 0.5),
+              shadowColor: const Color(0xFF1E3E8A).withValues(alpha: 0.3),
             ),
             onPressed: _isSubmitting ? null : _demanderLogement,
             child: _isSubmitting
@@ -766,7 +928,7 @@ class _DetailsLogementScreenState extends State<DetailsLogementScreen> {
                 Icon(Icons.send_outlined, color: Colors.white, size: 20),
                 SizedBox(width: 10),
                 Text(
-                  "Demander ce logement",
+                  "Demander Visite ",
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white,

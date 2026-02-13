@@ -9,6 +9,24 @@ class RoleScreen extends StatefulWidget {
 }
 
 class _RoleScreenState extends State<RoleScreen> {
+  // 🆕 Variables pour gérer les arguments de navigation
+  Map<String, dynamic>? _navigationArgs;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🎯 Récupérer les arguments passés depuis LoginScreen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null) {
+        setState(() {
+          _navigationArgs = args;
+        });
+        print('📍 RoleScreen - Vient de: ${args['from']}');
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,7 +37,19 @@ class _RoleScreenState extends State<RoleScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 60),
+              const SizedBox(height: 40),
+
+              // 🆕 Bouton retour SI on vient d'une demande de logement
+              if (_navigationArgs != null && _navigationArgs!['from'] == 'details-logement')
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2E4B8C)),
+                    onPressed: () => Navigator.pop(context, false),
+                  ),
+                ),
+
+              const SizedBox(height: 20),
               // Logo
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -44,11 +74,47 @@ class _RoleScreenState extends State<RoleScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 80),
+              const SizedBox(height: 60),
+
+              // 🆕 Message contexte si vient d'une demande de logement
+              if (_navigationArgs != null && _navigationArgs!['from'] == 'details-logement')
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 30),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E4B8C).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF2E4B8C).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: Color(0xFF2E4B8C),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Créez un compte locataire pour continuer votre demande de logement',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Titre
-              const Text(
-                'Choisissez votre profil',
-                style: TextStyle(
+              Text(
+                _navigationArgs != null && _navigationArgs!['from'] == 'details-logement'
+                    ? 'Choisissez votre profil'
+                    : 'Choisissez votre profil',
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -93,7 +159,12 @@ class _RoleScreenState extends State<RoleScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pushNamed(context, '/login');
+                      // 🆕 Passer les arguments aussi au login si nécessaire
+                      if (_navigationArgs != null) {
+                        Navigator.pushNamed(context, '/login', arguments: _navigationArgs);
+                      } else {
+                        Navigator.pushNamed(context, '/login');
+                      }
                     },
                     child: const Text(
                       'Se connecter',
@@ -122,17 +193,33 @@ class _RoleScreenState extends State<RoleScreen> {
   }) {
     return GestureDetector(
       onTap: () {
-        // ✅ MODIFICATION : Navigation différente selon le type
-        if (userType == 'locataire') {
-          // Locataire → Mode invité → Écran d'accueil
-          Navigator.pushNamed(context, '/main_client');
-        } else {
-          // Bailleur → Inscription obligatoire
+        // 🎯 LOGIQUE MODIFIÉE
+
+        // CAS 1 : On vient d'une demande de logement
+        if (_navigationArgs != null && _navigationArgs!['from'] == 'details-logement') {
+          // ✅ Aller TOUJOURS à l'inscription avec le rôle choisi
           Navigator.pushNamed(
             context,
             '/register',
-            arguments: userType,
+            arguments: {
+              ..._navigationArgs!, // Garder tous les arguments
+              'role': userType, // Ajouter le rôle choisi
+            },
           );
+        }
+        // CAS 2 : Navigation normale (pas de demande de logement)
+        else {
+          if (userType == 'locataire') {
+            // Locataire → Mode invité → Écran d'accueil
+            Navigator.pushNamed(context, '/main_client');
+          } else {
+            // Bailleur → Inscription obligatoire
+            Navigator.pushNamed(
+              context,
+              '/register',
+              arguments: {'role': userType}, // 🆕 Format cohérent
+            );
+          }
         }
       },
       child: Container(

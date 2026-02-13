@@ -53,9 +53,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Ici tu peux logger ou déléguer à un service
-  // print('🔕 Message FCM en background: ${message.messageId}');
 }
 
 Future<void> main() async {
@@ -154,21 +151,39 @@ class MyApp extends StatelessWidget {
         '/main_bailleur': (context) => const MainScreenBailleur(),
         '/main_client': (context) => const ClientHomeScreen(),
         '/profile': (context) => const ProfileScreen(),
-        '/notif':(context) => const NotifScreen(),
+        '/notif': (context) => const NotifScreen(),
       },
       onGenerateRoute: (settings) {
+        // 🎯 ROUTE /register CORRIGÉE
         if (settings.name == '/register') {
-          final userType = settings.arguments as String?;
-          if (userType == null) {
+          final args = settings.arguments;
+
+          // ✅ CAS 1 : Arguments au format Map (nouveau flux)
+          if (args is Map<String, dynamic>) {
+            return MaterialPageRoute(
+              builder: (context) => RegisterScreen(
+                userType: args['role'] as String?, // Récupérer le rôle depuis la Map
+              ),
+              settings: RouteSettings(arguments: args), // Passer toute la Map
+            );
+          }
+
+          // ✅ CAS 2 : Arguments au format String (ancien flux - compatibilité)
+          else if (args is String) {
+            return MaterialPageRoute(
+              builder: (context) => RegisterScreen(userType: args),
+            );
+          }
+
+          // ✅ CAS 3 : Pas d'arguments → RoleScreen
+          else {
             return MaterialPageRoute(
               builder: (context) => const RoleScreen(),
             );
           }
-          return MaterialPageRoute(
-            builder: (context) => RegisterScreen(userType: userType),
-          );
         }
 
+        // Route /notifications (inchangée)
         if (settings.name == '/notifications') {
           final userId = settings.arguments as int?;
           if (userId != null) {
