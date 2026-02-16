@@ -6,9 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-// Imports de tes fichiers
 import '../../presentation/provider/PropertyProvider.dart';
 import '../../presentation/provider/DemandeProvider.dart';
+import '../../presentation/provider/notification_provider.dart'; // ✅ AJOUTÉ
 import '../../data/model/property.dart';
 import 'add_property_screen.dart';
 import '../commun/notifications_screen.dart';
@@ -35,9 +35,30 @@ class _HomeScreenState extends State<HomeScreen> {
     // Charger les propriétés après l'affichage
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PropertyProvider>().loadOwnerProperties();
+
+      // ✅ LANCER L'ÉCOUTE DES NOTIFICATIONS
+      _initNotificationListener();
     });
 
     _initForegroundMessagingListener();
+  }
+
+  // ✅ NOUVELLE MÉTHODE
+  Future<void> _initNotificationListener() async {
+    // Option 1 : Utiliser Firebase Auth UID
+    final firebaseUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    // Option 2 : Utiliser Laravel ID (si tu l'as mappé dans Firebase)
+    final prefs = await SharedPreferences.getInstance();
+    final laravelUserId = prefs.getInt('userId')?.toString();
+
+    // ✅ Choisis l'ID approprié selon ta structure
+    final userId = firebaseUserId ?? laravelUserId;
+
+    if (userId != null) {
+      Provider.of<NotificationProvider>(context, listen: false)
+          .listenToNotifications(userId);
+    }
   }
 
   void _initForegroundMessagingListener() {
@@ -50,13 +71,10 @@ class _HomeScreenState extends State<HomeScreen> {
           SnackBar(
             content: Text(notification.title ?? 'Nouvelle notification'),
             duration: const Duration(seconds: 3),
+            backgroundColor: Colors.blue,
           ),
         );
       }
-
-      // Ici tu peux aussi faire un refresh manuel si un jour tu en as besoin,
-      // mais ton StreamBuilder sur la collection "notifications"
-      // met déjà à jour le badge automatiquement.
     });
   }
 
@@ -101,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.white,
               child: Container(
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1E3A8A), // Bleu Luwaas
+                  color: Color(0xFF1E3A8A),
                   borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(30),
                     bottomRight: Radius.circular(30),
@@ -128,8 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               final provider =
                               Provider.of<DemandeProvider>(context);
                               final count = provider.demandes
-                                  .where(
-                                      (d) => d.status == 'en_attente')
+                                  .where((d) => d.status == 'en_attente')
                                   .length;
 
                               return GestureDetector(
@@ -137,8 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) =>
-                                      const DemandeScreen(),
+                                      builder: (_) => const DemandeScreen(),
                                     ),
                                   );
                                 },
@@ -159,44 +175,30 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                           ),
 
-                        // --- B. NOTIFICATIONS (Firebase) ---
-                        if (currentUserId == null)
-                          const Icon(Icons.notifications_none,
-                              color: Colors.white, size: 34)
-                        else
-                          StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('notifications')
-                                .where('user_id',
-                                isEqualTo:
-                                currentUserId.toString())
-                                .where('is_read', isEqualTo: false)
-                                .snapshots(),
-                            builder: (context, snapshot) {
-                              final count =
-                                  snapshot.data?.docs.length ?? 0;
-
-                              return GestureDetector(
-                                onTap: _goToNotifications,
-                                child: Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    const Icon(
-                                      Icons.notifications_none,
-                                      color: Colors.white,
-                                      size: 34,
+                        // ✅ B. NOTIFICATIONS (UTILISER NotificationProvider)
+                        Consumer<NotificationProvider>(
+                          builder: (context, notifProvider, child) {
+                            return GestureDetector(
+                              onTap: _goToNotifications,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  const Icon(
+                                    Icons.notifications_none,
+                                    color: Colors.white,
+                                    size: 34,
+                                  ),
+                                  if (notifProvider.unreadCount > 0)
+                                    Positioned(
+                                      right: -2,
+                                      top: -2,
+                                      child: _buildBadge(notifProvider.unreadCount),
                                     ),
-                                    if (count > 0)
-                                      Positioned(
-                                        right: -2,
-                                        top: -2,
-                                        child: _buildBadge(count),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
 
@@ -206,14 +208,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     TextField(
                       decoration: InputDecoration(
                         hintText: "Rechercher",
-                        hintStyle:
-                        TextStyle(color: Colors.grey[400]),
+                        hintStyle: TextStyle(color: Colors.grey[400]),
                         filled: true,
                         fillColor: Colors.white,
-                        prefixIcon: const Icon(Icons.search,
-                            color: Colors.grey),
-                        contentPadding:
-                        const EdgeInsets.symmetric(vertical: 0),
+                        prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(15),
                           borderSide: BorderSide.none,
@@ -225,15 +224,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // 3. TEXTE ET ILLUSTRATION
                     Padding(
-                      padding:
-                      const EdgeInsets.symmetric(horizontal: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
                       child: Row(
-                        mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text("Louez.",
                                   style: TextStyle(
@@ -272,42 +268,36 @@ class _HomeScreenState extends State<HomeScreen> {
           SliverToBoxAdapter(
             child: Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                  vertical: 20, horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Catégories",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 18)),
+                      style:
+                      TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 15),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
                         _categoryButton("VILLA", Icons.villa,
-                            onPressed: () =>
-                                _goToAddProperty("villa")),
+                            onPressed: () => _goToAddProperty("villa")),
                         const SizedBox(width: 15),
                         _categoryButton("MAISON", Icons.home,
-                            onPressed: () =>
-                                _goToAddProperty("maison")),
+                            onPressed: () => _goToAddProperty("maison")),
                         const SizedBox(width: 15),
                         _categoryButton("IMMEUBLE", Icons.apartment,
-                            onPressed: () =>
-                                _goToAddProperty("immeuble")),
+                            onPressed: () => _goToAddProperty("immeuble")),
                       ],
                     ),
                   ),
                   const SizedBox(height: 30),
                   const Row(
-                    mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text("Vos Propriétés",
                           style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18)),
+                              fontWeight: FontWeight.bold, fontSize: 18)),
                       Text("Voir Tous",
                           style: TextStyle(
                               color: Color(0xFF1E3A8A),
@@ -331,12 +321,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               const SizedBox(height: 20),
                               Icon(Icons.house_siding_rounded,
-                                  size: 60,
-                                  color: Colors.grey[300]),
+                                  size: 60, color: Colors.grey[300]),
                               const SizedBox(height: 10),
                               Text("Aucune propriété ajoutée",
-                                  style: TextStyle(
-                                      color: Colors.grey[500])),
+                                  style: TextStyle(color: Colors.grey[500])),
                             ],
                           ),
                         );
@@ -346,35 +334,27 @@ class _HomeScreenState extends State<HomeScreen> {
                             .take(3)
                             .map(
                               (p) => Card(
-                            margin: const EdgeInsets.only(
-                                bottom: 10),
+                            margin: const EdgeInsets.only(bottom: 10),
                             elevation: 2,
-                            shape:
-                            RoundedRectangleBorder(
-                              borderRadius:
-                              BorderRadius.circular(12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: ListTile(
                               leading: Container(
-                                padding:
-                                const EdgeInsets.all(8),
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
                                   color: Colors.blue[50],
-                                  borderRadius:
-                                  BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(Icons.home,
                                     color: Color(0xFF1E3A8A)),
                               ),
                               title: Text(p.titre,
                                   style: const TextStyle(
-                                      fontWeight:
-                                      FontWeight.bold)),
+                                      fontWeight: FontWeight.bold)),
                               subtitle: Text(p.adresse),
-                              trailing: const Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 14,
-                                  color: Colors.grey),
+                              trailing: const Icon(Icons.arrow_forward_ios,
+                                  size: 14, color: Colors.grey),
                             ),
                           ),
                         )
@@ -391,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Petit widget pour le badge rouge pour éviter la répétition
+  // Petit widget pour le badge rouge
   Widget _buildBadge(int count) {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -402,15 +382,12 @@ class _HomeScreenState extends State<HomeScreen> {
           BorderSide(color: Color(0xFF1E3A8A), width: 1.5),
         ),
       ),
-      constraints:
-      const BoxConstraints(minWidth: 18, minHeight: 18),
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
       child: Center(
         child: Text(
           '$count',
           style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.bold),
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -421,16 +398,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFFF5F7FA),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon,
-                size: 20, color: const Color(0xFF1E3A8A)),
+            Icon(icon, size: 20, color: const Color(0xFF1E3A8A)),
             const SizedBox(width: 8),
             Text(
               label,

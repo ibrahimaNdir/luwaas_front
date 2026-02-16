@@ -2,19 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:luwaas/presentation/locataire/select_logement_screen.dart';
 import 'package:provider/provider.dart';
 
-
-// IMPORTANT: Assure-toi que ces chemins correspondent bien à ton projet
 import '../../presentation/provider/auth_provider.dart';
 import '../../presentation/provider/BailProvider.dart';
+import '../../presentation/provider/notification_provider.dart'; // ✅ AJOUTÉ
 import '../../data/model/bailspaiement.dart';
 
-
-// TODO: importe ici tes vrais écrans quand ils seront prêts
-// import 'payment_screen.dart';
-// import 'contracts_screen.dart';
- import 'baux_screen.dart';
+import 'baux_screen.dart';
 import 'logement_screen.dart';
- import 'search_screen.dart';
+import 'search_screen.dart';
 
 class ClientHomeScreen extends StatelessWidget {
   const ClientHomeScreen({super.key});
@@ -27,8 +22,8 @@ class ClientHomeScreen extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children:  [
-              _TopHeader(), // Contient le Provider pour "Bonjour Prénom"
+            children: const [
+              _TopHeader(),
               SizedBox(height: 18),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 22),
@@ -44,7 +39,7 @@ class ClientHomeScreen extends StatelessWidget {
               SizedBox(height: 18),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 22),
-                child: _QuickActionsGrid(), // Contient les navigations
+                child: _QuickActionsGrid(),
               ),
               SizedBox(height: 22),
             ],
@@ -66,11 +61,18 @@ class _TopHeaderState extends State<_TopHeader> {
   @override
   void initState() {
     super.initState();
-    // Charger les baux au démarrage pour savoir quoi afficher
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Assure-toi que cette méthode existe dans ton BailProvider !
-      // Si elle s'appelle différemment (ex: fetchBauxLocataire), change le nom ici.
+      // ✅ Charger les baux
       Provider.of<BailProvider>(context, listen: false).fetchBauxLocataire();
+
+      // ✅ NOUVEAU : Lancer l'écoute des notifications
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.id?.toString(); // Récupérer l'ID utilisateur
+
+      if (userId != null) {
+        Provider.of<NotificationProvider>(context, listen: false)
+            .listenToNotifications(userId);
+      }
     });
   }
 
@@ -84,7 +86,7 @@ class _TopHeaderState extends State<_TopHeader> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
       decoration: const BoxDecoration(
-        color: Color(0xFF1E3E8A), // Bleu Luwaas
+        color: Color(0xFF1E3E8A),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(34),
           bottomRight: Radius.circular(34),
@@ -93,7 +95,6 @@ class _TopHeaderState extends State<_TopHeader> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ En-tête : Bonjour + Cloche + Profil
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -123,31 +124,41 @@ class _TopHeaderState extends State<_TopHeader> {
                   ],
                 ),
               ),
-              // ✅ Icônes à droite : Notifications + Profil
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Row(
                   children: [
-                    // Icône Notifications
-                    GestureDetector(
-                      onTap: () {
-                        // Action pour les notifications
-                        Navigator.pushNamed(context, '/notif');
+                    // ✅ ICÔNE NOTIFICATIONS AVEC BADGE
+                    Consumer<NotificationProvider>(
+                      builder: (context, notifProvider, child) {
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/notif');
+                          },
+                          child: notifProvider.unreadCount > 0
+                              ? Badge(
+                            label: Text('${notifProvider.unreadCount}'),
+                            backgroundColor: Colors.red,
+                            textColor: Colors.white,
+                            child: const Icon(
+                              Icons.notifications_outlined,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          )
+                              : const Icon(
+                            Icons.notifications_outlined,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        );
                       },
-                      child: const Icon(
-                        Icons.notifications_outlined,
-                        color: Colors.white,
-                        size: 24,
-                      ),
                     ),
                     const SizedBox(width: 16),
-                    // ✅ Icône Profil utilisateur
+                    // Icône Profil utilisateur
                     GestureDetector(
                       onTap: () {
-                        // Navigation vers la page profil
                         Navigator.pushNamed(context, '/profile');
-                        // Ou affiche un menu déroulant avec les infos
-                        // _showProfileMenu(context);
                       },
                       child: Container(
                         width: 36,
@@ -175,13 +186,10 @@ class _TopHeaderState extends State<_TopHeader> {
           // Carte DYNAMIQUE (Loyer ou Recherche)
           Consumer<BailProvider>(
             builder: (context, bailProvider, child) {
-
-              // Cas 1 : Chargement
               if (bailProvider.isLoadingBauxLocataire) {
                 return const Center(child: CircularProgressIndicator(color: Colors.white));
               }
 
-              // Cas 2 : Aucun Bail -> Affiche invitation à chercher
               if (bailProvider.bauxLocataire.isEmpty) {
                 return Container(
                   width: double.infinity,
@@ -220,14 +228,13 @@ class _TopHeaderState extends State<_TopHeader> {
                 );
               }
 
-              // Cas 3 : A un Bail -> Affiche le loyer (Prend le 1er bail)
               final bail = bailProvider.bauxLocataire.first;
 
               return Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2C4FA1), // Bleu un peu plus clair
+                  color: const Color(0xFF2C4FA1),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Row(
@@ -293,9 +300,7 @@ class _TopHeaderState extends State<_TopHeader> {
       ),
     );
   }
-
 }
-
 
 class _QuickActionsGrid extends StatelessWidget {
   const _QuickActionsGrid();
@@ -391,7 +396,7 @@ class _ActionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x26000000), // noir 15%
+              color: Color(0x26000000),
               offset: Offset(4, 4),
               blurRadius: 4,
             ),
@@ -429,4 +434,3 @@ class _ActionCard extends StatelessWidget {
     );
   }
 }
-

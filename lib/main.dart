@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:luwaas/presentation/locataire/notif_screen.dart';
+import 'package:luwaas/presentation/commun/notif_screen.dart';
 import 'package:luwaas/presentation/locataire/profile.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -13,7 +13,7 @@ import 'package:luwaas/presentation/commun/register_screen.dart';
 import 'package:luwaas/presentation/commun/role_screen.dart';
 import 'package:luwaas/presentation/commun/splash_screen.dart';
 import 'package:luwaas/presentation/bailleur/main_screen.dart';
-import 'package:luwaas/presentation/locataire/main_screen.dart';
+
 import 'package:luwaas/presentation/locataire/home_screen.dart';
 import 'package:luwaas/presentation/commun/notifications_screen.dart';
 
@@ -21,7 +21,7 @@ import 'package:luwaas/presentation/commun/notifications_screen.dart';
 import 'package:luwaas/presentation/provider/auth_provider.dart';
 
 // --- NOTIFICATIONS ---
-import 'package:luwaas/presentation/provider/NotificationProvider.dart';
+import 'package:luwaas/presentation/provider/notification_provider.dart';
 
 // --- DEMANDES ---
 import 'package:luwaas/presentation/provider/DemandeProvider.dart';
