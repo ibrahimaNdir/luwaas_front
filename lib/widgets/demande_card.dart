@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-
 import '../data/model/demande.dart';
-import 'package:intl/intl.dart'; // Pour formater la date/prix si besoin
+import 'package:intl/intl.dart';
 
 class DemandeCard extends StatelessWidget {
   final Demande demande;
@@ -15,30 +14,28 @@ class DemandeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Récupération sécurisée des données imbriquées
-    final locataireName = demande.locataire?['name'] ?? 'Locataire inconnu';
-    final locatairePhoto = demande.locataire?['photo_url']; // URL ou null
+    // ✅ CORRECTION : Utiliser les bonnes clés et les getters du modèle
+    final locataireName = demande.locataireNomComplet; // Getter du modèle
+    final locatairePhoto = demande.locataire?['photo_url'];
 
-    final logementTitre = demande.logement?['titre'] ?? 'Logement';
-    final logementPrix = demande.logement?['prix'] ?? 0;
-    final logementImage = demande.logement?['image_url']; // URL de la première photo
+    final logementTitre = demande.logementTitreComplet; // Getter du modèle
+    final logementAdresse = demande.logementAdresse ?? '';
+
+    // ✅ CORRECTION : Utiliser 'prix' au lieu de 'loyer_mensuel'
+    final logementPrix = demande.logementPrix; // ✅ Au lieu de demande.logement?['prix']
+
+    // ✅ CORRECTION : Utiliser 'photo_principale' au lieu de 'image_url'
+    final logementImage = demande.logementPhotoUrl; // Getter du modèle
+
+    print("🏠 Logement dans DemandeCard:");
+    print("   Titre: $logementTitre");
+    print("   Prix: $logementPrix FCFA");
+    print("   Photo: $logementImage");
+    print("   Locataire: $locataireName");
 
     // Couleur du badge selon le statut
-    Color statusColor;
-    String statusText;
-    switch (demande.status) {
-      case 'acceptee':
-        statusColor = Colors.green;
-        statusText = "Acceptée";
-        break;
-      case 'refusee':
-        statusColor = Colors.red;
-        statusText = "Refusée";
-        break;
-      default:
-        statusColor = Colors.orange;
-        statusText = "En attente";
-    }
+    final statusColor = demande.statusColor; // Getter du modèle
+    final statusText = demande.statusLibelle; // Getter du modèle
 
     return GestureDetector(
       onTap: onTap,
@@ -70,7 +67,20 @@ class DemandeCard extends StatelessWidget {
                     height: 100,
                     color: Colors.grey[200],
                     child: logementImage != null
-                        ? Image.network(logementImage, fit: BoxFit.cover)
+                        ? Image.network(
+                      logementImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        print("❌ Erreur chargement image: $error");
+                        return const Icon(Icons.home, color: Colors.grey, size: 40);
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        );
+                      },
+                    )
                         : const Icon(Icons.home, color: Colors.grey, size: 40),
                   ),
                 ),
@@ -85,17 +95,30 @@ class DemandeCard extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: Color(0xFF1E3A8A), // Ton Bleu Luwaas
+                          color: Color(0xFF1E3A8A),
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (logementAdresse.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          logementAdresse,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
-                        "$logementPrix FCFA / mois",
+                        "${NumberFormat('#,###', 'fr_FR').format(logementPrix)} FCFA / mois",
                         style: const TextStyle(
                           color: Colors.green,
                           fontWeight: FontWeight.w600,
+                          fontSize: 14,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -109,7 +132,11 @@ class DemandeCard extends StatelessWidget {
                         ),
                         child: Text(
                           statusText,
-                          style: TextStyle(color: statusColor, fontSize: 12),
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -129,12 +156,18 @@ class DemandeCard extends StatelessWidget {
                   // Photo Locataire (Rond)
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: Colors.grey[300],
+                    backgroundColor: const Color(0xFF1E3A8A).withOpacity(0.1),
                     backgroundImage: locatairePhoto != null
                         ? NetworkImage(locatairePhoto)
                         : null,
                     child: locatairePhoto == null
-                        ? const Icon(Icons.person, size: 20, color: Colors.white)
+                        ? Text(
+                      locataireName.isNotEmpty ? locataireName[0].toUpperCase() : 'L',
+                      style: const TextStyle(
+                        color: Color(0xFF1E3A8A),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
                         : null,
                   ),
                   const SizedBox(width: 10),
@@ -153,9 +186,9 @@ class DemandeCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Date relative (Il y a X temps)
+                  // Date relative
                   Text(
-                    DateFormat('dd/MM').format(demande.dateDemande), // Ou lib 'timeago' si tu l'as
+                    DateFormat('dd/MM').format(demande.dateDemande),
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
                 ],

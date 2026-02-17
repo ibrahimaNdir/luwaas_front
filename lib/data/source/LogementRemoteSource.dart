@@ -9,7 +9,7 @@ class LogementRemoteDataSource {
   late final Dio dio;
 
   // Base URL de ton API Laravel
-  static const String _baseUrl = 'http://192.168.1.13:8000/api';
+  static const String _baseUrl = 'http://192.168.1.10:8000/api';
 
   LogementRemoteDataSource() {
     dio = Dio(

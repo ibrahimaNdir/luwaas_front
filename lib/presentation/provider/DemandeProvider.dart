@@ -5,8 +5,8 @@ import '../../data/model/demande.dart';
 
 class DemandeProvider with ChangeNotifier {
 
-  String? _error; // La variable privée
-  String? get error => _error; // Le getter public
+  String? _error;
+  String? get error => _error;
   final DemandeRepository repository;
 
   // États
@@ -20,87 +20,101 @@ class DemandeProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   // Constructeur
-  DemandeProvider({required this.repository});
+  DemandeProvider({required this.repository}) {
+    print("🏗️ DemandeProvider créé");
+  }
 
   /// 1. Charger les demandes depuis le serveur
   Future<void> fetchDemandesBailleur() async {
+    print("🔄 DemandeProvider - fetchDemandesBailleur début");
+    print("   _isLoading avant: $_isLoading");
+
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners(); // Notifie l'UI d'afficher le loader
+    notifyListeners();
+
+    print("   _isLoading après: $_isLoading (notifyListeners appelé)");
 
     try {
+      print("📡 Appel repository.getDemandes()...");
       _demandes = await repository.getDemandes();
+      print("✅ ${_demandes.length} demande(s) récupérée(s)");
+
+      // Debug : afficher les IDs des demandes
+      for (var demande in _demandes) {
+        print("   - Demande ID: ${demande.id}, Status: ${demande.status}");
+      }
+
     } catch (e) {
       _errorMessage = "Impossible de charger les demandes. Vérifiez votre connexion.";
-      print(e);
+      print("❌ Erreur fetchDemandesBailleur: $e");
     } finally {
       _isLoading = false;
-      notifyListeners(); // Notifie l'UI que c'est fini
+      print("🏁 fetchDemandesBailleur terminé - _isLoading: $_isLoading");
+      notifyListeners();
     }
   }
 
   /// 2. Action : Accepter une demande
   Future<void> accepterDemande(int demandeId) async {
-    // Optimistic Update : On pourrait changer l'état tout de suite,
-    // mais on va attendre la confirmation serveur pour être sûr.
+    print("✅ DemandeProvider - accepterDemande($demandeId)");
 
     final success = await repository.accepterDemande(demandeId);
 
     if (success) {
-      // On met à jour la liste locale manuellement pour éviter de rappeler l'API
-      final index = _demandes.indexWhere((d) => d.id == demandeId);
-      if (index != -1) {
-        // On remplace l'ancienne demande par une copie avec le nouveau statut
-        // Note: Comme nos champs sont 'final', on doit recréer l'objet ou le modifier si non final.
-        // Ici, méthode simple : on recharge la liste ou on bidouille la liste.
-        // Le plus propre : recharger la liste pour avoir les données fraîches.
-        // fetchDemandes();
-
-        // Méthode rapide (si on veut éviter le chargement) :
-        // Il faudrait que DemandeLocation ait une méthode copyWith ou ne soit pas immuable.
-        // Pour faire simple ici : on recharge tout.
-        await fetchDemandesBailleur();
-      }
+      print("✅ Demande $demandeId acceptée - Rechargement de la liste...");
+      await fetchDemandesBailleur();
     } else {
       _errorMessage = "Erreur lors de l'acceptation.";
+      print("❌ Échec acceptation demande $demandeId");
       notifyListeners();
     }
   }
 
   /// 3. Action : Refuser une demande
   Future<void> refuserDemande(int demandeId) async {
+    print("❌ DemandeProvider - refuserDemande($demandeId)");
+
     final success = await repository.refuserDemande(demandeId);
 
     if (success) {
-      // On recharge la liste pour voir la demande disparaître ou changer d'état
+      print("✅ Demande $demandeId refusée - Rechargement de la liste...");
       await fetchDemandesBailleur();
     } else {
       _errorMessage = "Erreur lors du refus.";
+      print("❌ Échec refus demande $demandeId");
       notifyListeners();
     }
   }
 
-  /// ✅ 2. Créer une demande (POST) - C'EST CE QU'IL MANQUAIT !
+  /// 4. Créer une demande (POST)
   Future<bool> createDemande(int logementId) async {
-    _error = null; // Reset
+    print("➕ DemandeProvider - createDemande($logementId)");
+
+    _error = null;
     try {
       final success = await repository.createDemande(logementId);
       if (success) {
+        print("✅ Demande créée avec succès pour logement $logementId");
         return true;
       } else {
-        // ✅ CORRECTION : Remplir _error au lieu de _errorMessage
         _error = "Le serveur n'a pas validé la demande (vérifiez si déjà demandée).";
-        notifyListeners(); // Important pour notifier l'UI
+        print("⚠️ $_error");
+        notifyListeners();
         return false;
       }
     } catch (e) {
-      _error = e.toString(); // ✅ Ça c'est bon
+      _error = e.toString();
+      print("❌ Erreur création demande: $_error");
       notifyListeners();
       return false;
     }
   }
 
-
-  // Petit bonus : Getter pour avoir seulement les demandes en attente (pour le Badge par exemple)
-  int get countEnAttente => _demandes.where((d) => d.status == 'en_attente').length;
+  // Getter pour avoir seulement les demandes en attente (pour le Badge)
+  int get countEnAttente {
+    final count = _demandes.where((d) => d.status == 'en_attente').length;
+    print("🔢 countEnAttente: $count");
+    return count;
+  }
 }

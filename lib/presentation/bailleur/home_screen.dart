@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:luwaas/presentation/commun/notif_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider; // ✅ AJOUTÉ hide
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../../presentation/provider/PropertyProvider.dart';
 import '../../presentation/provider/DemandeProvider.dart';
-import '../../presentation/provider/notification_provider.dart'; // ✅ AJOUTÉ
+import '../../presentation/provider/notification_provider.dart';
+import '../../presentation/provider/auth_provider.dart'; // Votre AuthProvider
 import '../../data/model/property.dart';
 import 'add_property_screen.dart';
-import '../commun/notifications_screen.dart';
 import 'demande_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,40 +23,73 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int? currentUserId;
   late final FirebaseMessaging _messaging;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    print("🚀 HomeScreen initState");
 
     _messaging = FirebaseMessaging.instance;
-    _loadLaravelUserId();
 
-    // Charger les propriétés après l'affichage
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PropertyProvider>().loadOwnerProperties();
-
-      // ✅ LANCER L'ÉCOUTE DES NOTIFICATIONS
-      _initNotificationListener();
+    // Charger les données après l'affichage
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      print("⏰ PostFrameCallback - Début initialisation");
+      await _initializeData();
     });
 
     _initForegroundMessagingListener();
   }
 
-  // ✅ NOUVELLE MÉTHODE
-  Future<void> _initNotificationListener() async {
-    // Option 1 : Utiliser Firebase Auth UID
-    final firebaseUserId = FirebaseAuth.instance.currentUser?.uid;
+  Future<void> _initializeData() async {
+    try {
+      // Attendre que l'auth soit prête
+      await Future.delayed(const Duration(milliseconds: 500));
 
-    // Option 2 : Utiliser Laravel ID (si tu l'as mappé dans Firebase)
+      if (!mounted) return;
+
+      final authProvider = context.read<AuthProvider>();
+      print("👤 AuthProvider - User: ${authProvider.user?.email ?? 'null'}");
+
+      // Charger les propriétés
+      print("🏠 Chargement des propriétés...");
+      await context.read<PropertyProvider>().loadOwnerProperties();
+
+      // Charger les demandes si connecté
+      if (authProvider.user != null) {
+        print("✅ Utilisateur connecté, chargement des demandes...");
+        await context.read<DemandeProvider>().fetchDemandesBailleur();
+
+        final demandeProvider = context.read<DemandeProvider>();
+        print("📋 Demandes chargées: ${demandeProvider.demandes.length}");
+        print("📊 Demandes en attente: ${demandeProvider.demandes.where((d) => d.status == 'en_attente').length}");
+      } else {
+        print("⚠️ Pas d'utilisateur connecté");
+      }
+
+      await _initNotificationListener();
+
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+        print("✅ Initialisation terminée");
+      }
+    } catch (e) {
+      print("❌ Erreur initialisation: $e");
+    }
+  }
+
+  Future<void> _initNotificationListener() async {
+    final firebaseUserId = FirebaseAuth.instance.currentUser?.uid;
     final prefs = await SharedPreferences.getInstance();
     final laravelUserId = prefs.getInt('userId')?.toString();
-
-    // ✅ Choisis l'ID approprié selon ta structure
     final userId = firebaseUserId ?? laravelUserId;
 
-    if (userId != null) {
+    print("🔔 Notification userId: $userId");
+
+    if (userId != null && mounted) {
       Provider.of<NotificationProvider>(context, listen: false)
           .listenToNotifications(userId);
     }
@@ -78,14 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _loadLaravelUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      currentUserId = prefs.getInt('userId');
-    });
-    print("🆔 User ID chargé : $currentUserId");
-  }
-
   void _goToAddProperty(String type) {
     Navigator.push(
       context,
@@ -94,22 +120,63 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _goToNotifications() {
-    if (currentUserId == null) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotifScreen()),
+    );
+  }
+
+  void _goToDemandes() {
+    print("🔥 _goToDemandes appelée !");
+
+    final authProvider = context.read<AuthProvider>();
+    print("👤 User dans _goToDemandes: ${authProvider.user?.email ?? 'null'}");
+
+    if (authProvider.user == null) {
+      print("⚠️ Utilisateur non connecté");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Chargement du profil en cours...")),
+        const SnackBar(
+          content: Text("Veuillez vous connecter pour voir vos demandes"),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
+
+    print("➡️ Navigation vers DemandeScreen");
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => NotificationsScreen(userId: currentUserId!),
-      ),
+      MaterialPageRoute(builder: (_) => const DemandeScreen()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final isLoggedIn = authProvider.user != null;
+
+    print("🔄 Build - isLoggedIn: $isLoggedIn, _isInitialized: $_isInitialized");
+
+    // Afficher un loader pendant l'initialisation
+    if (!_isInitialized) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF1E3A8A),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 20),
+              Text(
+                "Chargement...",
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Material(
       child: CustomScrollView(
         slivers: [
@@ -133,36 +200,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // --- A. GESTION DES DEMANDES (Laravel / Provider) ---
-                        if (currentUserId == null)
-                          const Icon(Icons.add_home_outlined,
-                              color: Colors.white, size: 34)
-                        else
-                          FutureBuilder(
-                            future: Provider.of<DemandeProvider>(context,
-                                listen: false)
-                                .fetchDemandesBailleur(),
-                            builder: (context, snapshot) {
-                              final provider =
-                              Provider.of<DemandeProvider>(context);
-                              final count = provider.demandes
-                                  .where((d) => d.status == 'en_attente')
-                                  .length;
+                        // --- A. GESTION DES DEMANDES ---
+                        Consumer<DemandeProvider>(
+                          builder: (context, provider, child) {
+                            final count = isLoggedIn
+                                ? provider.demandes
+                                .where((d) => d.status == 'en_attente')
+                                .length
+                                : 0;
 
-                              return GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const DemandeScreen(),
-                                    ),
-                                  );
-                                },
+                            return GestureDetector(
+                              onTap: () {
+                                print("👆 TAP DÉTECTÉ sur l'icône add_home !");
+                                _goToDemandes();
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
                                 child: Stack(
                                   clipBehavior: Clip.none,
                                   children: [
-                                    const Icon(Icons.add_home_outlined,
-                                        color: Colors.white, size: 34),
+                                    const Icon(
+                                      Icons.add_home_outlined,
+                                      color: Colors.white,
+                                      size: 34,
+                                    ),
                                     if (count > 0)
                                       Positioned(
                                         right: -2,
@@ -171,30 +233,38 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                   ],
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
+                        ),
 
-                        // ✅ B. NOTIFICATIONS (UTILISER NotificationProvider)
+                        // ✅ B. NOTIFICATIONS
                         Consumer<NotificationProvider>(
                           builder: (context, notifProvider, child) {
                             return GestureDetector(
-                              onTap: _goToNotifications,
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  const Icon(
-                                    Icons.notifications_none,
-                                    color: Colors.white,
-                                    size: 34,
-                                  ),
-                                  if (notifProvider.unreadCount > 0)
-                                    Positioned(
-                                      right: -2,
-                                      top: -2,
-                                      child: _buildBadge(notifProvider.unreadCount),
+                              onTap: () {
+                                print("👆 TAP DÉTECTÉ sur notifications !");
+                                _goToNotifications();
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    const Icon(
+                                      Icons.notifications_none,
+                                      color: Colors.white,
+                                      size: 34,
                                     ),
-                                ],
+                                    if (notifProvider.unreadCount > 0)
+                                      Positioned(
+                                        right: -2,
+                                        top: -2,
+                                        child: _buildBadge(notifProvider.unreadCount),
+                                      ),
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -273,8 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Catégories",
-                      style:
-                      TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 15),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -296,12 +365,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text("Vos Propriétés",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18)),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                       Text("Voir Tous",
                           style: TextStyle(
-                              color: Color(0xFF1E3A8A),
-                              fontWeight: FontWeight.bold)),
+                              color: Color(0xFF1E3A8A), fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 15),
@@ -371,7 +438,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Petit widget pour le badge rouge
   Widget _buildBadge(int count) {
     return Container(
       padding: const EdgeInsets.all(4),

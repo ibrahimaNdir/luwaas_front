@@ -5,7 +5,7 @@ import '../model/demande.dart';
 
 class DemandeDataSource {
   // Remplace par ton URL de base (ex: http://10.0.2.2:8000/api pour simulateur Android)
-  final String baseUrl = "http://192.168.1.13:8000/api";
+  final String baseUrl = "http://192.168.1.10:8000/api";
 
   // Méthode utilitaire pour récupérer le Token stocké (Sanctum)
   Future<String?> _getToken() async {
@@ -18,7 +18,7 @@ class DemandeDataSource {
     final token = await _getToken();
 
     final response = await http.get(
-      Uri.parse('$baseUrl/bailleur/demandes'), // La route qu'on a définie dans api.php
+      Uri.parse('$baseUrl/proprietaire/demandes'), // La route qu'on a définie dans api.php
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',

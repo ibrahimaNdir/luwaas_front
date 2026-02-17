@@ -15,7 +15,6 @@ import 'package:luwaas/presentation/commun/splash_screen.dart';
 import 'package:luwaas/presentation/bailleur/main_screen.dart';
 
 import 'package:luwaas/presentation/locataire/home_screen.dart';
-import 'package:luwaas/presentation/commun/notifications_screen.dart';
 
 // --- AUTH ---
 import 'package:luwaas/presentation/provider/auth_provider.dart';
@@ -53,6 +52,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  print("📩 Message reçu en arrière-plan : ${message.notification?.title}");
 }
 
 Future<void> main() async {
@@ -64,30 +64,43 @@ Future<void> main() async {
   );
 
   // 🔹 Permissions de notifications (Android 13+ / iOS)
-  await FirebaseMessaging.instance.requestPermission();
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
 
   // 🔹 Handler pour messages en background
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // (Optionnel) initialiser automatiquement FCM au démarrage
+  // Initialiser automatiquement FCM au démarrage
   await FirebaseMessaging.instance.setAutoInitEnabled(true);
 
   runApp(
     MultiProvider(
       providers: [
-        // 1. Auth
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        // 1. Auth - ✅ DOIT ÊTRE EN PREMIER
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(),
+          lazy: false, // ✅ Charger immédiatement
+        ),
 
         // 2. Notification
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
-
-        // 3. Demande
         ChangeNotifierProvider(
-          create: (context) => DemandeProvider(
-            repository: DemandeRepository(
-              dataSource: DemandeDataSource(),
-            ),
-          ),
+          create: (_) => NotificationProvider(),
+        ),
+
+        // 3. Demande - ✅ IMPORTANT: lazy: false pour charger au démarrage
+        ChangeNotifierProvider(
+          create: (context) {
+            print("🔧 Initialisation DemandeProvider");
+            return DemandeProvider(
+              repository: DemandeRepository(
+                dataSource: DemandeDataSource(),
+              ),
+            );
+          },
+          lazy: false, // ✅ Ne pas attendre pour créer le provider
         ),
 
         // 4. Bail
@@ -154,28 +167,23 @@ class MyApp extends StatelessWidget {
         '/notif': (context) => const NotifScreen(),
       },
       onGenerateRoute: (settings) {
-        // 🎯 ROUTE /register CORRIGÉE
+        // 🎯 ROUTE /register
         if (settings.name == '/register') {
           final args = settings.arguments;
 
-          // ✅ CAS 1 : Arguments au format Map (nouveau flux)
           if (args is Map<String, dynamic>) {
             return MaterialPageRoute(
               builder: (context) => RegisterScreen(
-                userType: args['role'] as String?, // Récupérer le rôle depuis la Map
+                userType: args['role'] as String?,
               ),
-              settings: RouteSettings(arguments: args), // Passer toute la Map
+              settings: RouteSettings(arguments: args),
             );
           }
-
-          // ✅ CAS 2 : Arguments au format String (ancien flux - compatibilité)
           else if (args is String) {
             return MaterialPageRoute(
               builder: (context) => RegisterScreen(userType: args),
             );
           }
-
-          // ✅ CAS 3 : Pas d'arguments → RoleScreen
           else {
             return MaterialPageRoute(
               builder: (context) => const RoleScreen(),
@@ -183,16 +191,10 @@ class MyApp extends StatelessWidget {
           }
         }
 
-        // Route /notifications (inchangée)
+        // Route /notifications
         if (settings.name == '/notifications') {
-          final userId = settings.arguments as int?;
-          if (userId != null) {
-            return MaterialPageRoute(
-              builder: (context) => NotificationsScreen(userId: userId),
-            );
-          }
           return MaterialPageRoute(
-            builder: (context) => const LoginScreen(),
+            builder: (context) => const NotifScreen(),
           );
         }
 

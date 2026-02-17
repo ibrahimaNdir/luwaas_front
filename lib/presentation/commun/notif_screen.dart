@@ -13,6 +13,9 @@ class NotifScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
+    print('🔍 Firebase Auth User: ${FirebaseAuth.instance.currentUser}');
+    print('🔍 User ID: $userId');
+
     if (userId == null) {
       return Scaffold(
         body: Center(
