@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:luwaas/presentation/commun/notif_screen.dart';
+import 'package:luwaas/presentation/commun/onboarding_screen.dart'; // ✅ Nouveau fichier unique
 import 'package:luwaas/presentation/locataire/profile.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -13,7 +14,6 @@ import 'package:luwaas/presentation/commun/register_screen.dart';
 import 'package:luwaas/presentation/commun/role_screen.dart';
 import 'package:luwaas/presentation/commun/splash_screen.dart';
 import 'package:luwaas/presentation/bailleur/main_screen.dart';
-
 import 'package:luwaas/presentation/locataire/home_screen.dart';
 
 // --- AUTH ---
@@ -52,7 +52,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  print("📩 Message reçu en arrière-plan : ${message.notification?.title}");
+  debugPrint("📩 Message reçu en arrière-plan : ${message.notification?.title}");
 }
 
 Future<void> main() async {
@@ -73,16 +73,16 @@ Future<void> main() async {
   // 🔹 Handler pour messages en background
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialiser automatiquement FCM au démarrage
+  // 🔹 Initialiser automatiquement FCM au démarrage
   await FirebaseMessaging.instance.setAutoInitEnabled(true);
 
   runApp(
     MultiProvider(
       providers: [
-        // 1. Auth - ✅ DOIT ÊTRE EN PREMIER
+        // 1. Auth — doit être en premier
         ChangeNotifierProvider(
           create: (_) => AuthProvider(),
-          lazy: false, // ✅ Charger immédiatement
+          lazy: false,
         ),
 
         // 2. Notification
@@ -90,17 +90,17 @@ Future<void> main() async {
           create: (_) => NotificationProvider(),
         ),
 
-        // 3. Demande - ✅ IMPORTANT: lazy: false pour charger au démarrage
+        // 3. Demande
         ChangeNotifierProvider(
           create: (context) {
-            print("🔧 Initialisation DemandeProvider");
+            debugPrint("🔧 Initialisation DemandeProvider"); // ✅ debugPrint
             return DemandeProvider(
               repository: DemandeRepository(
                 dataSource: DemandeDataSource(),
               ),
             );
           },
-          lazy: false, // ✅ Ne pas attendre pour créer le provider
+          lazy: false,
         ),
 
         // 4. Bail
@@ -150,7 +150,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Louwaas',
+      title: 'Luwaas',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E3A8A)),
         fontFamily: 'Figtree',
@@ -159,6 +159,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: const SplashScreen(),
       routes: {
+        '/onboarding': (context) => const OnboardingScreen(), // ✅ Fichier unique
         '/login': (context) => const LoginScreen(),
         '/role': (context) => const RoleScreen(),
         '/main_bailleur': (context) => const MainScreenBailleur(),
@@ -178,20 +179,18 @@ class MyApp extends StatelessWidget {
               ),
               settings: RouteSettings(arguments: args),
             );
-          }
-          else if (args is String) {
+          } else if (args is String) {
             return MaterialPageRoute(
               builder: (context) => RegisterScreen(userType: args),
             );
-          }
-          else {
+          } else {
             return MaterialPageRoute(
               builder: (context) => const RoleScreen(),
             );
           }
         }
 
-        // Route /notifications
+        // 🎯 ROUTE /notifications
         if (settings.name == '/notifications') {
           return MaterialPageRoute(
             builder: (context) => const NotifScreen(),

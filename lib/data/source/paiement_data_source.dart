@@ -14,7 +14,7 @@ class PaiementDataSource {
     http.Client? client,
     String? baseUrl,
   })  : client = client ?? http.Client(),
-        baseUrl = baseUrl ?? 'http://192.168.1.10:8000/api';
+        baseUrl = baseUrl ?? 'http://192.168.1.8:8000/api';
 
   Future<List<PaiementBailleur>> fetchPaiementsBailleur() async { // Retirer l'argument token ici
     final prefs = await SharedPreferences.getInstance();

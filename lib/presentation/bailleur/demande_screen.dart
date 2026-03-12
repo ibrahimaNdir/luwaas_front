@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 import '../../presentation/provider/DemandeProvider.dart'; // Vérifie le chemin
 import '../../data/model/demande.dart'; // Vérifie le chemin
 import '';
-import '../../widgets/demande_card.dart'; // Importe ton fichier DemandeCard qu'on a vu juste avant !
-// import 'detail_demande_screen.dart'; // À créer plus tard pour voir les détails/accepter
+import '../../widgets/demande_card.dart';
+import 'detail_demande_screen.dart'; // Importe ton fichier DemandeCard qu'on a vu juste avant !
+ import 'detail_demande_screen.dart'; // À créer plus tard pour voir les détails/accepter
 
 class DemandeScreen extends StatefulWidget {
   const DemandeScreen({super.key});
@@ -97,10 +98,8 @@ class _DemandeScreenState extends State<DemandeScreen> {
                 demande: demande,
                 onTap: () {
                   // Navigation vers le détail pour Accepter/Refuser
-                  // Navigator.push(context, MaterialPageRoute(builder: (_) => DetailDemandeScreen(demande: demande)));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Détail à venir...")),
-                  );
+                   Navigator.push(context, MaterialPageRoute(builder: (_) => DetailDemandeScreen(demande: demande)));
+
                 },
               );
             },

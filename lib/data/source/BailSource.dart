@@ -6,7 +6,7 @@ import '../model/bailspaiement.dart';
 
 
 class BailDataSource {
-  final String baseUrl = "http://192.168.1.10:8000/api"; // Ton URL API
+  final String baseUrl = "http://192.168.1.8:8000/api"; // Ton URL API
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -42,26 +42,79 @@ class BailDataSource {
 
 
   Future<List<Bail>> fetchBauxBailleur() async {
+    print("═════════════════════════════════");
+    print("🔵 DÉBUT fetchBauxBailleur");
+    print("═════════════════════════════════");
+
     final token = await _getToken();
 
-    final response = await http.get(
-      Uri.parse('$baseUrl/proprietaire/baux'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-    );
+    // ✅ VÉRIFIER LE TOKEN
+    if (token == null) {
+      print("❌ TOKEN EST NULL !");
+      throw Exception('Token manquant - Utilisateur non connecté');
+    }
 
-    if (response.statusCode == 200) {
-      final jsonResponse = json.decode(response.body);
-      // Laravel Resource renvoie souvent { "data": [...] }
-      final List<dynamic> data = jsonResponse['data'] ?? jsonResponse;
+    print("✅ Token présent: ${token.substring(0, 20)}...");
 
-      return data.map((json) => Bail.fromJson(json)).toList();
-    } else {
-      throw Exception('Erreur chargement baux: ${response.statusCode}');
+    final url = '$baseUrl/proprietaire/baux';
+    print("🔵 URL: $url");
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      print("🔵 Status Code: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        print("✅ Réponse OK");
+        print("🔵 Body (premiers 500 chars): ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}");
+
+        final jsonResponse = json.decode(response.body);
+        print("🔵 Type de jsonResponse: ${jsonResponse.runtimeType}");
+
+        // Laravel Resource renvoie souvent { "data": [...] }
+        final List<dynamic> data = jsonResponse['data'] ?? jsonResponse;
+        print("🔵 Type de data: ${data.runtimeType}");
+        print("✅ Nombre de baux trouvés: ${data.length}");
+
+        if (data.isEmpty) {
+          print("⚠️ La liste est vide !");
+          return [];
+        }
+
+        final baux = data.map((json) {
+          print("  → Parsing bail ID: ${json['id']}");
+          return Bail.fromJson(json);
+        }).toList();
+
+        print("✅ Baux parsés avec succès: ${baux.length}");
+        return baux;
+
+      } else if (response.statusCode == 401) {
+        print("❌ ERREUR 401: Non authentifié");
+        print("❌ Body: ${response.body}");
+        throw Exception('Non authentifié - Token invalide ou expiré');
+      } else {
+        print("❌ ERREUR ${response.statusCode}");
+        print("❌ Body: ${response.body}");
+        throw Exception('Erreur chargement baux: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      print("❌ EXCEPTION: $e");
+      print("❌ StackTrace: $stackTrace");
+      rethrow;
+    } finally {
+      print("═════════════════════════════════");
+      print("🔵 FIN fetchBauxBailleur");
+      print("═════════════════════════════════");
     }
   }
+
 
   /// Récupère la liste des baux du LOCATAIRE connecté (pour le paiement)
   /// Appelle GET /api/bailpaie

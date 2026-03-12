@@ -1,37 +1,56 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:luwaas/presentation/commun/role_screen.dart';
+import 'onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  static const _splashDuration = Duration(seconds: 4);
+  static const _animationDuration = Duration(seconds: 2);
+
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: _animationDuration,
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
     _controller.forward();
+    _startNavigationTimer();
+  }
 
-    // Navigation après 3 secondes
-    Future.delayed(const Duration(seconds: 10), () {
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => RoleScreen()));
+  void _startNavigationTimer() {
+    _timer = Timer(_splashDuration, () async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      bool showOnboarding = prefs.getBool('showOnboarding') ?? true;
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+          showOnboarding ? const OnboardingScreen() : const RoleScreen(),
+        ),
+      );
     });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
   }

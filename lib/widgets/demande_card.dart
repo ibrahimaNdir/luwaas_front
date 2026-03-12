@@ -18,6 +18,7 @@ class DemandeCard extends StatelessWidget {
     final locataireName = demande.locataireNomComplet; // Getter du modèle
     final locatairePhoto = demande.locataire?['photo_url'];
 
+
     final logementTitre = demande.logementTitreComplet; // Getter du modèle
     final logementAdresse = demande.logementAdresse ?? '';
 
