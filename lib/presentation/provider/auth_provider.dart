@@ -71,33 +71,66 @@ class AuthProvider extends ChangeNotifier {
     required String login,
     required String password,
   }) async {
+    print("═════════════════════════════════");
+    print("🔵 DÉBUT LOGIN FLUTTER");
+    print("🔵 Login: $login");
+    print("═════════════════════════════════");
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // 1️⃣ Appel à Laravel (retourne user + firebase_token)
+      // 1️⃣ Appel à Laravel
+      print("📡 Appel _repository.login()...");
       final result = await _repository.login(
         login: login,
         password: password,
       );
 
+      print("✅ Réponse reçue du backend");
+      print("✅ User: ${result['user']}");
+      print("✅ Token: ${result['token']}");
+      print("✅ Firebase Token: ${result['firebase_token']}");
+
       _user = result['user'];
       final firebaseToken = result['firebase_token'];
 
-      // 2️⃣ Authentification avec Firebase Auth via Custom Token
-      await _signInWithFirebase(firebaseToken);
+      // ✅ 2️⃣ Firebase OPTIONNEL (ne bloque pas la connexion)
+      if (firebaseToken != null && firebaseToken.toString().isNotEmpty) {
+        print("🔵 Tentative authentification Firebase...");
+        try {
+          await _signInWithFirebase(firebaseToken);
+          print("✅ Firebase Auth réussie");
+        } catch (e) {
+          // ✅ NE PAS BLOQUER LA CONNEXION SI FIREBASE ÉCHOUE
+          print("⚠️ Firebase Auth échouée (non bloquant): $e");
+        }
 
-      // 3️⃣ Maintenant on peut enregistrer le token FCM dans Firestore
-      await _saveFCMToken(_user!.id.toString());
+        // ✅ 3️⃣ FCM Token (optionnel aussi)
+        try {
+          await _saveFCMToken(_user!.id.toString());
+          print("✅ FCM Token sauvegardé");
+        } catch (e) {
+          print("⚠️ FCM Token échoué (non bloquant): $e");
+        }
+      } else {
+        print("⚠️ Pas de Firebase token, skip Firebase Auth");
+      }
 
       _errorMessage = null;
-    } catch (e) {
+      print("✅ LOGIN RÉUSSI");
+    } catch (e, stackTrace) {
+      print("❌ ERREUR LOGIN: $e");
+      print("❌ StackTrace: $stackTrace");
       _errorMessage = e.toString();
       _user = null;
     }
 
     _isLoading = false;
+    print("═════════════════════════════════");
+    print("🔵 FIN LOGIN - isAuthenticated: $isAuthenticated");
+    print("═════════════════════════════════");
     notifyListeners();
   }
 

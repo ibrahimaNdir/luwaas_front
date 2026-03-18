@@ -2,7 +2,7 @@ class Bail {
   final int id;
   final int logementId;
   final int locataireId;
-  final int? demandeId; // Nullable : un bail peut être créé sans demande préalable
+  final int? demandeId;
 
   // Infos financières
   final int montantLoyer;
@@ -16,9 +16,9 @@ class Bail {
   final int jourEcheance;
   final bool renouvellementAutomatique;
 
-  final String statut; // 'actif', 'resilie', etc.
+  final String statut;
 
-  // Objets imbriqués pour l'affichage (facultatif mais utile)
+  // Objets imbriqués
   final Map<String, dynamic>? logement;
   final Map<String, dynamic>? locataire;
 
@@ -41,34 +41,36 @@ class Bail {
   });
 
   factory Bail.fromJson(Map<String, dynamic> json) {
+    // Helper sécurisé contre les null
+    int parseIntSafe(dynamic val, [int defaultVal = 0]) {
+      if (val == null) return defaultVal;
+      return int.tryParse(val.toString()) ?? defaultVal;
+    }
+
     return Bail(
-      id: json['id'],
-      logementId: int.parse(json['logement_id'].toString()),
-      locataireId: int.parse(json['locataire_id'].toString()),
+      id: parseIntSafe(json['id']),
+      logementId: parseIntSafe(json['logement_id']),
+      locataireId: parseIntSafe(json['locataire_id']),
       demandeId: json['demande_id'] != null
-          ? int.parse(json['demande_id'].toString())
+          ? parseIntSafe(json['demande_id'])
           : null,
-
-      montantLoyer: int.parse(json['montant_loyer'].toString()),
-      caution: int.parse(json['caution'].toString()),
-      chargesMensuelles: int.parse(json['charges_mensuelles'].toString()),
-      cautionsAPayer: int.parse(json['cautions_a_payer'].toString()),
-
+      montantLoyer: parseIntSafe(json['montant_loyer']),
+      caution: parseIntSafe(json['caution']),
+      chargesMensuelles: parseIntSafe(json['charges_mensuelles']),
+      cautionsAPayer: parseIntSafe(json['cautions_a_payer']),
       dateDebut: DateTime.parse(json['date_debut']),
       dateFin: DateTime.parse(json['date_fin']),
-
-      jourEcheance: int.parse(json['jour_echeance'].toString()),
-      // Gestion du booléen qui peut arriver en 0/1 depuis MySQL
-      renouvellementAutomatique: json['renouvellement_automatique'] == 1 || json['renouvellement_automatique'] == true,
-
+      jourEcheance: parseIntSafe(json['jour_echeance']),
+      // ⚠️ Ton API renvoie 'renouvellement' pas 'renouvellement_automatique'
+      renouvellementAutomatique: json['renouvellement_automatique'] == 1 ||
+          json['renouvellement_automatique'] == true ||
+          json['renouvellement'] == true,
       statut: json['statut'] ?? 'actif',
-
       logement: json['logement'],
       locataire: json['locataire'],
     );
   }
 
-  // Utile pour envoyer les données au formulaire de modification si besoin
   Map<String, dynamic> toJson() {
     return {
       'logement_id': logementId,
@@ -78,7 +80,6 @@ class Bail {
       'caution': caution,
       'date_debut': dateDebut.toIso8601String(),
       'date_fin': dateFin.toIso8601String(),
-      // ... ajouter le reste si besoin d'envoyer au back
     };
   }
 }

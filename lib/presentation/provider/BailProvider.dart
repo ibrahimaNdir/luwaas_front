@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/repositories/bail_repository.dart';
 import '../../data/model/bails.dart';
-// Note: On n'utilise plus bailspaiement.dart
 
 class BailProvider with ChangeNotifier {
   final BailRepository repository;
@@ -14,9 +13,13 @@ class BailProvider with ChangeNotifier {
   List<Bail> _bauxBailleur = [];
   bool _isLoadingBauxBailleur = false;
 
-  // --- ÉTATS POUR LA LISTE LOCATAIRE (Pour l'écran Payer loyer / Accueil) ---
+  // --- ÉTATS POUR LA LISTE LOCATAIRE ---
   List<Bail> _bauxLocataire = [];
   bool _isLoadingBauxLocataire = false;
+
+  // --- ÉTATS POUR DÉTAIL BAIL ---
+  Bail? _bailDetail;
+  bool _isLoadingDetail = false;
 
   // --- GETTERS ---
   bool get isCreating => _isCreating;
@@ -28,98 +31,251 @@ class BailProvider with ChangeNotifier {
   List<Bail> get bauxLocataire => _bauxLocataire;
   bool get isLoadingBauxLocataire => _isLoadingBauxLocataire;
 
+  Bail? get bailDetail => _bailDetail;
+  bool get isLoadingDetail => _isLoadingDetail;
+
+  // ✅ GETTERS STATISTIQUES
+  int get countBauxActifsBailleur =>
+      _bauxBailleur.where((b) => b.statut == 'actif').length;
+
+  int get countBauxActifsLocataire =>
+      _bauxLocataire.where((b) => b.statut == 'actif').length;
+
   BailProvider({required this.repository});
 
-  /// 1. CRÉER UN BAIL (BAILLEUR)
+  // ══════════════════════════════════════════════════════════
+  // CRÉER UN BAIL (BAILLEUR)
+  // ══════════════════════════════════════════════════════════
   Future<bool> createBail({
-    required int logementId,
-    required int locataireId,
-    required int? demandeId,
+    required int demandeId,
     required int montantLoyer,
-    required int caution,
-    required int charges,
-    required int cautionsPayer,
+    required int nombreMoisCaution,
+    required int chargesMensuelles,
     required DateTime dateDebut,
     required DateTime dateFin,
     required int jourEcheance,
     required bool renouvellementAuto,
   }) async {
+    print("═════════════════════════════════");
+    print("🔵 BailProvider.createBail DÉBUT");
+    print("═════════════════════════════════");
+
     _isCreating = true;
     _error = null;
     notifyListeners();
 
     final Map<String, dynamic> data = {
-      'logement_id': logementId,
-      'locataire_id': locataireId,
       'demande_id': demandeId,
       'montant_loyer': montantLoyer,
-      'caution': caution,
-      'charges_mensuelles': charges,
-      'cautions_a_payer': cautionsPayer,
+      'charges_mensuelles': chargesMensuelles,
+      'nombre_mois_caution': nombreMoisCaution,
       'date_debut': dateDebut.toIso8601String().split('T')[0],
       'date_fin': dateFin.toIso8601String().split('T')[0],
       'jour_echeance': jourEcheance,
       'renouvellement_automatique': renouvellementAuto,
     };
 
+    print("📤 Données envoyées:");
+    print(data);
+
     try {
       await repository.createBail(data);
+
+      print("✅ Bail créé avec succès");
       _isCreating = false;
+      _error = null;
       notifyListeners();
 
-      // Après création, on recharge la liste bailleur
-      fetchBauxBailleur();
+      // ✅ Recharger la liste des baux
+      print("🔄 Rechargement de la liste des baux...");
+      await fetchBauxBailleur();
+
+      print("═════════════════════════════════");
+      print("✅ BailProvider.createBail FIN");
+      print("═════════════════════════════════");
 
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print("❌ Erreur création bail: $e");
+      print("❌ StackTrace: $stackTrace");
+
       _isCreating = false;
-      _error = "Erreur: ${e.toString()}";
+      _error = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
+
+      print("═════════════════════════════════");
+      print("❌ BailProvider.createBail ÉCHEC");
+      print("═════════════════════════════════");
+
       return false;
     }
   }
 
-  /// 2. LISTER LES BAUX DU BAILLEUR
+  // ══════════════════════════════════════════════════════════
+  // LISTER LES BAUX DU BAILLEUR
+  // ══════════════════════════════════════════════════════════
   Future<void> fetchBauxBailleur() async {
-    debugPrint("🔵 Début fetchBauxBailleur");
+    print("═════════════════════════════════");
+    print("🔵 BailProvider.fetchBauxBailleur DÉBUT");
+    print("═════════════════════════════════");
+
     _isLoadingBauxBailleur = true;
     _error = null;
     notifyListeners();
 
     try {
       _bauxBailleur = await repository.getBauxBailleur();
-      debugPrint("✅ Baux récupérés: ${_bauxBailleur.length} éléments");
 
-      // Affichez le premier bail pour vérifier
+      print("✅ Baux bailleur récupérés: ${_bauxBailleur.length}");
+
       if (_bauxBailleur.isNotEmpty) {
-        debugPrint("Premier bail: ${_bauxBailleur[0].locataire}");
+        print("📋 Premier bail:");
+        print("  - ID: ${_bauxBailleur[0].id}");
+        print("  - Statut: ${_bauxBailleur[0].statut}");
+        print("  - Locataire: ${_bauxBailleur[0].locataire}");
+        print("  - Logement: ${_bauxBailleur[0].logement}");
       }
-    } catch (e) {
-      _error = "Impossible de charger les baux bailleur.";
-      debugPrint("❌ Erreur Provider fetchBauxBailleur: $e");
+
+      _error = null;
+    } catch (e, stackTrace) {
+      print("❌ Erreur fetchBauxBailleur: $e");
+      print("❌ StackTrace: $stackTrace");
+
+      _error = "Impossible de charger les baux";
+      _bauxBailleur = [];
     } finally {
       _isLoadingBauxBailleur = false;
-      debugPrint("🔵 Fin fetchBauxBailleur - isLoading: $_isLoadingBauxBailleur");
       notifyListeners();
+
+      print("═════════════════════════════════");
+      print("🔵 BailProvider.fetchBauxBailleur FIN");
+      print("═════════════════════════════════");
     }
   }
 
-
-  /// 3. LISTER LES BAUX DU LOCATAIRE (Écran Accueil / Payer)
-  /// Récupère maintenant des objets 'Bail' complets avec montant_loyer
+  // ══════════════════════════════════════════════════════════
+  // LISTER LES BAUX DU LOCATAIRE
+  // ══════════════════════════════════════════════════════════
   Future<void> fetchBauxLocataire() async {
+    print("═════════════════════════════════");
+    print("🔵 BailProvider.fetchBauxLocataire DÉBUT");
+    print("═════════════════════════════════");
+
     _isLoadingBauxLocataire = true;
     _error = null;
     notifyListeners();
 
     try {
       _bauxLocataire = await repository.getBauxLocataire();
-    } catch (e) {
-      _error = "Impossible de charger les baux locataire.";
-      print("Erreur Provider fetchBauxLocataire: $e");
+
+      print("✅ Baux locataire récupérés: ${_bauxLocataire.length}");
+
+      if (_bauxLocataire.isNotEmpty) {
+        print("📋 Premier bail:");
+        print("  - ID: ${_bauxLocataire[0].id}");
+        print("  - Statut: ${_bauxLocataire[0].statut}");
+        print("  - Logement: ${_bauxLocataire[0].logement}");
+      }
+
+      _error = null;
+    } catch (e, stackTrace) {
+      print("❌ Erreur fetchBauxLocataire: $e");
+      print("❌ StackTrace: $stackTrace");
+
+      _error = "Impossible de charger les baux";
+      _bauxLocataire = [];
     } finally {
       _isLoadingBauxLocataire = false;
       notifyListeners();
+
+      print("═════════════════════════════════");
+      print("🔵 BailProvider.fetchBauxLocataire FIN");
+      print("═════════════════════════════════");
     }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // RÉCUPÉRER LES DÉTAILS D'UN BAIL
+  // ══════════════════════════════════════════════════════════
+  Future<void> fetchBailDetail(int bailId) async {
+    print("═════════════════════════════════");
+    print("🔵 BailProvider.fetchBailDetail DÉBUT");
+    print("🔵 Bail ID: $bailId");
+    print("═════════════════════════════════");
+
+    _isLoadingDetail = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _bailDetail = await repository.getBailDetail(bailId);
+
+      print("✅ Détail bail récupéré:");
+      print("  - ID: ${_bailDetail!.id}");
+      print("  - Statut: ${_bailDetail!.statut}");
+
+      _error = null;
+    } catch (e, stackTrace) {
+      print("❌ Erreur fetchBailDetail: $e");
+      print("❌ StackTrace: $stackTrace");
+
+      _error = "Impossible de charger les détails du bail";
+      _bailDetail = null;
+    } finally {
+      _isLoadingDetail = false;
+      notifyListeners();
+
+      print("═════════════════════════════════");
+      print("🔵 BailProvider.fetchBailDetail FIN");
+      print("═════════════════════════════════");
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // UTILITAIRES
+  // ══════════════════════════════════════════════════════════
+
+  /// Nettoyer les erreurs
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  /// Rafraîchir les données selon le rôle
+  Future<void> refresh({bool isBailleur = false}) async {
+    if (isBailleur) {
+      await fetchBauxBailleur();
+    } else {
+      await fetchBauxLocataire();
+    }
+  }
+
+  /// Récupérer un bail par ID depuis la liste en cache
+  Bail? getBailById(int id, {bool fromBailleur = false}) {
+    final liste = fromBailleur ? _bauxBailleur : _bauxLocataire;
+    try {
+      return liste.firstWhere((bail) => bail.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Filtrer les baux par statut
+  List<Bail> getBauxByStatut(String statut, {bool fromBailleur = false}) {
+    final liste = fromBailleur ? _bauxBailleur : _bauxLocataire;
+    return liste.where((bail) => bail.statut == statut).toList();
+  }
+
+  /// Réinitialiser le provider
+  void reset() {
+    _bauxBailleur = [];
+    _bauxLocataire = [];
+    _bailDetail = null;
+    _error = null;
+    _isCreating = false;
+    _isLoadingBauxBailleur = false;
+    _isLoadingBauxLocataire = false;
+    _isLoadingDetail = false;
+    notifyListeners();
   }
 }

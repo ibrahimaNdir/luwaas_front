@@ -17,7 +17,7 @@ class _MesDemandesScreenState extends State<MesDemandesScreen> {
     super.initState();
     // Charge les données dès l'ouverture de l'écran
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<DemandeProvider>(context, listen: false).fetchDemandesBailleur();
+      Provider.of<DemandeProvider>(context, listen: false).fetchDemandesProprietaire();
     });
   }
 
@@ -38,16 +38,16 @@ class _MesDemandesScreenState extends State<MesDemandesScreen> {
           }
 
           // 2. Erreur
-          if (provider.errorMessage != null) {
+          if (provider.error != null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error_outline, color: Colors.red, size: 50),
                   const SizedBox(height: 10),
-                  Text(provider.errorMessage!),
+                  Text(provider.error!),
                   TextButton(
-                    onPressed: () => provider.fetchDemandesBailleur(),
+                    onPressed: () => provider.fetchDemandesProprietaire(),
                     child: const Text("Réessayer"),
                   )
                 ],
@@ -71,7 +71,7 @@ class _MesDemandesScreenState extends State<MesDemandesScreen> {
 
           // 4. Affichage de la liste
           return RefreshIndicator(
-            onRefresh: () => provider.fetchDemandesBailleur(),
+            onRefresh: () => provider.fetchDemandesProprietaire(),
             child: ListView.builder(
               itemCount: provider.demandes.length,
               itemBuilder: (context, index) {

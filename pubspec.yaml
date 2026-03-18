@@ -96,8 +96,8 @@ flutter:
 
   assets:
     - assets/images/pi.jpg
-    #- assets/images/onboarding_bg1.jpg
-    #- assets/images/onboarding_bg1.jpg
+    - assets/images/paiement.jpg
+    - assets/images/unnamed.jpg
     - assets/icons/
     - assets/fonts/
 

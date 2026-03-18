@@ -1,120 +1,205 @@
 import 'package:flutter/material.dart';
-
 import '../../data/repositories/DemandeRepository.dart';
 import '../../data/model/demande.dart';
 
 class DemandeProvider with ChangeNotifier {
-
-  String? _error;
-  String? get error => _error;
   final DemandeRepository repository;
 
   // États
   List<Demande> _demandes = [];
   bool _isLoading = false;
-  String? _errorMessage;
+  String? _error;
 
-  // Getters pour l'UI
+  // Getters
   List<Demande> get demandes => _demandes;
   bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
+  String? get error => _error;
 
   // Constructeur
   DemandeProvider({required this.repository}) {
-    print("🏗️ DemandeProvider créé");
+    debugPrint("🏗️ DemandeProvider créé");
   }
 
-  /// 1. Charger les demandes depuis le serveur
-  Future<void> fetchDemandesBailleur() async {
-    print("🔄 DemandeProvider - fetchDemandesBailleur début");
-    print("   _isLoading avant: $_isLoading");
+  /// ✅ 1. CHARGER LES DEMANDES DU PROPRIÉTAIRE (demandes reçues)
+  Future<void> fetchDemandesProprietaire() async {
+    debugPrint("═════════════════════════════════");
+    debugPrint("🔵 DÉBUT fetchDemandesProprietaire");
+    debugPrint("═════════════════════════════════");
 
     _isLoading = true;
-    _errorMessage = null;
+    _error = null;
     notifyListeners();
 
-    print("   _isLoading après: $_isLoading (notifyListeners appelé)");
-
     try {
-      print("📡 Appel repository.getDemandes()...");
-      _demandes = await repository.getDemandes();
-      print("✅ ${_demandes.length} demande(s) récupérée(s)");
+      debugPrint("📡 Appel repository.getDemandesProprietaire()...");
+      _demandes = await repository.getDemandesProprietaire();
+      debugPrint("✅ ${_demandes.length} demande(s) récupérée(s)");
 
-      // Debug : afficher les IDs des demandes
+      // Debug : afficher les demandes
       for (var demande in _demandes) {
-        print("   - Demande ID: ${demande.id}, Status: ${demande.status}");
+        debugPrint("  → Demande ID: ${demande.id}, Status: ${demande.status}");
       }
-
-    } catch (e) {
-      _errorMessage = "Impossible de charger les demandes. Vérifiez votre connexion.";
-      print("❌ Erreur fetchDemandesBailleur: $e");
+    } catch (e, stackTrace) {
+      _error = "Impossible de charger les demandes.";
+      debugPrint("❌ ERREUR fetchDemandesProprietaire: $e");
+      debugPrint("❌ StackTrace: $stackTrace");
     } finally {
       _isLoading = false;
-      print("🏁 fetchDemandesBailleur terminé - _isLoading: $_isLoading");
+      debugPrint("═════════════════════════════════");
+      debugPrint("🔵 FIN fetchDemandesProprietaire - isLoading: $_isLoading");
+      debugPrint("═════════════════════════════════");
       notifyListeners();
     }
   }
 
-  /// 2. Action : Accepter une demande
-  Future<void> accepterDemande(int demandeId) async {
-    print("✅ DemandeProvider - accepterDemande($demandeId)");
+  /// ✅ 2. CHARGER LES DEMANDES DU LOCATAIRE (demandes envoyées)
+  Future<void> fetchDemandesLocataire() async {
+    debugPrint("═════════════════════════════════");
+    debugPrint("🔵 DÉBUT fetchDemandesLocataire");
+    debugPrint("═════════════════════════════════");
 
-    final success = await repository.accepterDemande(demandeId);
-
-    if (success) {
-      print("✅ Demande $demandeId acceptée - Rechargement de la liste...");
-      await fetchDemandesBailleur();
-    } else {
-      _errorMessage = "Erreur lors de l'acceptation.";
-      print("❌ Échec acceptation demande $demandeId");
-      notifyListeners();
-    }
-  }
-
-  /// 3. Action : Refuser une demande
-  Future<void> refuserDemande(int demandeId) async {
-    print("❌ DemandeProvider - refuserDemande($demandeId)");
-
-    final success = await repository.refuserDemande(demandeId);
-
-    if (success) {
-      print("✅ Demande $demandeId refusée - Rechargement de la liste...");
-      await fetchDemandesBailleur();
-    } else {
-      _errorMessage = "Erreur lors du refus.";
-      print("❌ Échec refus demande $demandeId");
-      notifyListeners();
-    }
-  }
-
-  /// 4. Créer une demande (POST)
-  Future<bool> createDemande(int logementId) async {
-    print("➕ DemandeProvider - createDemande($logementId)");
-
+    _isLoading = true;
     _error = null;
+    notifyListeners();
+
     try {
-      final success = await repository.createDemande(logementId);
+      debugPrint("📡 Appel repository.getDemandesLocataire()...");
+      _demandes = await repository.getDemandesLocataire();
+      debugPrint("✅ ${_demandes.length} demande(s) récupérée(s)");
+
+      for (var demande in _demandes) {
+        debugPrint("  → Demande ID: ${demande.id}, Status: ${demande.status}");
+      }
+    } catch (e, stackTrace) {
+      _error = "Impossible de charger vos demandes.";
+      debugPrint("❌ ERREUR fetchDemandesLocataire: $e");
+      debugPrint("❌ StackTrace: $stackTrace");
+    } finally {
+      _isLoading = false;
+      debugPrint("═════════════════════════════════");
+      debugPrint("🔵 FIN fetchDemandesLocataire - isLoading: $_isLoading");
+      debugPrint("═════════════════════════════════");
+      notifyListeners();
+    }
+  }
+
+  /// ✅ 3. ACCEPTER UNE DEMANDE (Propriétaire)
+  Future<bool> accepterDemande(int demandeId) async {
+    debugPrint("✅ DemandeProvider - accepterDemande($demandeId)");
+
+    try {
+      final success = await repository.accepterDemande(demandeId);
+
       if (success) {
-        print("✅ Demande créée avec succès pour logement $logementId");
+        debugPrint("✅ Demande $demandeId acceptée - Rechargement...");
+        await fetchDemandesProprietaire();
         return true;
       } else {
-        _error = "Le serveur n'a pas validé la demande (vérifiez si déjà demandée).";
-        print("⚠️ $_error");
+        _error = "Erreur lors de l'acceptation.";
+        debugPrint("❌ Échec acceptation demande $demandeId");
         notifyListeners();
         return false;
       }
     } catch (e) {
-      _error = e.toString();
-      print("❌ Erreur création demande: $_error");
+      _error = "Erreur: ${e.toString()}";
+      debugPrint("❌ Exception accepterDemande: $e");
       notifyListeners();
       return false;
     }
   }
 
-  // Getter pour avoir seulement les demandes en attente (pour le Badge)
+  /// ✅ 4. REFUSER UNE DEMANDE (Propriétaire)
+  Future<bool> refuserDemande(int demandeId) async {
+    debugPrint("❌ DemandeProvider - refuserDemande($demandeId)");
+
+    try {
+      final success = await repository.refuserDemande(demandeId);
+
+      if (success) {
+        debugPrint("✅ Demande $demandeId refusée - Rechargement...");
+        await fetchDemandesProprietaire();
+        return true;
+      } else {
+        _error = "Erreur lors du refus.";
+        debugPrint("❌ Échec refus demande $demandeId");
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = "Erreur: ${e.toString()}";
+      debugPrint("❌ Exception refuserDemande: $e");
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// ✅ 5. CRÉER UNE DEMANDE (Locataire)
+  Future<bool> createDemande(int logementId) async {
+    debugPrint("➕ DemandeProvider - createDemande($logementId)");
+
+    _error = null;
+
+    try {
+      final success = await repository.createDemande(logementId);
+
+      if (success) {
+        debugPrint("✅ Demande créée avec succès pour logement $logementId");
+        return true;
+      } else {
+        _error = "Impossible de créer la demande (déjà existante ?).";
+        debugPrint("⚠️ $_error");
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = "Erreur: ${e.toString()}";
+      debugPrint("❌ Exception createDemande: $e");
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// ✅ 6. ANNULER UNE DEMANDE (Locataire)
+  Future<bool> annulerDemande(int demandeId) async {
+    debugPrint("🚫 DemandeProvider - annulerDemande($demandeId)");
+
+    try {
+      final success = await repository.annulerDemande(demandeId);
+
+      if (success) {
+        debugPrint("✅ Demande $demandeId annulée - Rechargement...");
+        await fetchDemandesLocataire();
+        return true;
+      } else {
+        _error = "Impossible d'annuler cette demande.";
+        debugPrint("❌ Échec annulation demande $demandeId");
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = "Erreur: ${e.toString()}";
+      debugPrint("❌ Exception annulerDemande: $e");
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// ✅ GETTERS UTILES
+
+  // Nombre de demandes en attente (pour badge)
   int get countEnAttente {
     final count = _demandes.where((d) => d.status == 'en_attente').length;
-    print("🔢 countEnAttente: $count");
+    debugPrint("🔢 countEnAttente: $count");
     return count;
+  }
+
+  // Demandes acceptées (pour le dropdown dans FormulaireBailScreen)
+  List<Demande> get demandesAcceptees {
+    return _demandes.where((d) => d.status == 'acceptee').toList();
+  }
+
+  // Nombre de demandes acceptées
+  int get countAcceptees {
+    return demandesAcceptees.length;
   }
 }

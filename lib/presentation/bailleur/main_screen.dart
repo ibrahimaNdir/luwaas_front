@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:luwaas/presentation/bailleur/logement_publie.dart';
-import 'package:provider/provider.dart'; // ✅ Ajoutez cet import
-import 'package:luwaas/presentation/provider/BailProvider.dart'; // ✅ Ajoutez cet import
+import 'package:provider/provider.dart';
+import 'package:luwaas/presentation/provider/BailProvider.dart';
 import 'bottom_bar.dart';
 import 'home_screen.dart';
 import 'property_screen.dart';
@@ -21,14 +21,12 @@ class MainScreenBailleur extends StatefulWidget {
 class _MainScreenBailleurState extends State<MainScreenBailleur> {
   int _selectedIndex = 0;
 
-  // ✅ AJOUTEZ CECI
   @override
   void initState() {
     super.initState();
-
-    // Charger les baux dès que le bailleur arrive sur l'écran principal
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint("🔵 MainScreenBailleur: Chargement des baux");
+    print("🔴 MAINSCREEN INITS'STATE LANCÉ");
+    Future.microtask(() {
+      print("🔴 FETCH LANCÉ DEPUIS MAINSCREEN");
       Provider.of<BailProvider>(context, listen: false).fetchBauxBailleur();
     });
   }

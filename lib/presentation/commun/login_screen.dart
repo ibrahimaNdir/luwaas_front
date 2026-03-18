@@ -58,43 +58,70 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     try {
+      print("🔵 LoginScreen - Tentative de connexion...");
+
       await authProvider.login(
         login: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      if (authProvider.isAuthenticated) {
-        if (mounted) {
-          // 🎯 VÉRIFIER SI ON VIENT DE DetailsLogementScreen
-          if (_navigationArgs != null &&
-              _navigationArgs!['from'] == 'details-logement') {
+      print("🔵 LoginScreen - Login terminé");
+      print("🔵 isAuthenticated: ${authProvider.isAuthenticated}");
+      print("🔵 userRole: ${authProvider.userRole}");
 
-            // ✅ CAS 1 : Retour vers DetailsLogementScreen pour faire la demande
-            print('🔄 Retour vers DetailsLogementScreen');
-            Navigator.pop(context, true); // ✅ Retour avec succès
+      // ✅ VÉRIFIER L'AUTHENTIFICATION MÊME EN CAS D'EXCEPTION
+      if (authProvider.isAuthenticated && mounted) {
+        print("✅ Utilisateur authentifié - Navigation...");
 
+        // 🎯 VÉRIFIER SI ON VIENT DE DetailsLogementScreen
+        if (_navigationArgs != null && _navigationArgs!['from'] == 'details-logement') {
+          print("🔄 Retour vers DetailsLogementScreen");
+          Navigator.pop(context, true);
+        } else {
+          // ✅ Navigation selon le rôle
+          final userRole = authProvider.userRole;
+          print("🔵 Navigation pour rôle: $userRole");
+
+          if (userRole == 'proprietaire') {
+            Navigator.pushReplacementNamed(context, '/main_bailleur');
+          } else if (userRole == 'locataire' || userRole == 'client') {
+            Navigator.pushReplacementNamed(context, '/client_home');
           } else {
-            // ✅ CAS 2 : Connexion normale → Redirection selon le rôle
-            final userRole = authProvider.userRole;
-
-            if (userRole == 'proprietaire') {
-              Navigator.pushReplacementNamed(context, '/main_bailleur');
-            } else if (userRole == 'locataire' || userRole == 'client') {
-              Navigator.pushReplacementNamed(context, '/client_home');
-            } else {
-              Navigator.pushReplacementNamed(context, '/role');
-            }
+            Navigator.pushReplacementNamed(context, '/role');
           }
         }
-      } else {
+      } else if (mounted) {
+        // ✅ Si vraiment pas authentifié
+        print("❌ Authentification échouée");
         setState(() {
           _errorMessage = authProvider.errorMessage ?? 'Erreur de connexion';
         });
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Email/téléphone ou mot de passe incorrect';
-      });
+      print("❌ Exception dans _login(): $e");
+
+      // ✅ VÉRIFIER QUAND MÊME L'AUTHENTIFICATION
+      if (authProvider.isAuthenticated && mounted) {
+        print("✅ Exception mais utilisateur authentifié - Navigation...");
+
+        // Navigation même en cas d'exception
+        final userRole = authProvider.userRole;
+
+        if (_navigationArgs != null && _navigationArgs!['from'] == 'details-logement') {
+          Navigator.pop(context, true);
+        } else if (userRole == 'proprietaire') {
+          Navigator.pushReplacementNamed(context, '/main_bailleur');
+        } else if (userRole == 'locataire' || userRole == 'client') {
+          Navigator.pushReplacementNamed(context, '/client_home');
+        } else {
+          Navigator.pushReplacementNamed(context, '/role');
+        }
+      } else if (mounted) {
+        // ✅ Vraiment une erreur de connexion
+        setState(() {
+          _errorMessage = 'Email/téléphone ou mot de passe incorrect';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {

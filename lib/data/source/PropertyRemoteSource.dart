@@ -28,7 +28,7 @@ class PropertyRemoteSource {
     http.Client? client,
     String? baseUrl,
   })  : client = client ?? http.Client(),
-        baseUrl = baseUrl ?? 'http://192.168.1.8:8000/api/proprietaire';
+        baseUrl = baseUrl ?? 'http://192.168.1.5:8000/api/proprietaire';
 
   // 🔧 Méthode utilitaire pour les headers
   Map<String, String> _headers([String? token]) => {

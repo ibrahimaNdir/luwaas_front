@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // Charger les demandes si connecté
       if (authProvider.user != null) {
         print("✅ Utilisateur connecté, chargement des demandes...");
-        await context.read<DemandeProvider>().fetchDemandesBailleur();
+        await context.read<DemandeProvider>().fetchDemandesProprietaire();
 
         final demandeProvider = context.read<DemandeProvider>();
         print("📋 Demandes chargées: ${demandeProvider.demandes.length}");

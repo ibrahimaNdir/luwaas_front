@@ -20,7 +20,7 @@ class _DemandeScreenState extends State<DemandeScreen> {
     super.initState();
     // Charger les demandes dès l'ouverture de l'écran
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<DemandeProvider>(context, listen: false).fetchDemandesBailleur();
+      Provider.of<DemandeProvider>(context, listen: false).fetchDemandesProprietaire();
     });
   }
 
@@ -41,7 +41,7 @@ class _DemandeScreenState extends State<DemandeScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              Provider.of<DemandeProvider>(context, listen: false).fetchDemandesBailleur();
+              Provider.of<DemandeProvider>(context, listen: false).fetchDemandesProprietaire();
             },
           ),
         ],
@@ -54,16 +54,16 @@ class _DemandeScreenState extends State<DemandeScreen> {
           }
 
           // 2. Erreur
-          if (provider.errorMessage != null) { // ou provider.error selon ton provider
+          if (provider.error != null) { // ou provider.error selon ton provider
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error_outline, size: 50, color: Colors.red),
                   const SizedBox(height: 10),
-                  Text(provider.errorMessage!, style: const TextStyle(color: Colors.red)),
+                  Text(provider.error!, style: const TextStyle(color: Colors.red)),
                   TextButton(
-                    onPressed: provider.fetchDemandesBailleur,
+                    onPressed: provider.fetchDemandesProprietaire,
                     child: const Text("Réessayer"),
                   )
                 ],

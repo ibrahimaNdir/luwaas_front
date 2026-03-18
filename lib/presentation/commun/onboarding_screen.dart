@@ -37,7 +37,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       "Créez et signez vos contrats de location en ligne. Tout est conservé, sécurisé et accessible partout au Sénégal.",
     ),
     _OnboardingData(
-      imagePath: 'assets/images/paiement.jpg', -
+      imagePath: 'assets/images/paiement.jpg',
       gradientColors: [Color(0xFF0D1F1A), Color(0xFF0D4A3A), Color(0xFF1A7A5E)],
       tag: "Paiements mobiles",
       title: "Encaissez et Payer votre Loyer via Mobile Money",

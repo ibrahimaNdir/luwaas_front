@@ -6,7 +6,7 @@ import '../model/bailspaiement.dart';
 
 
 class BailDataSource {
-  final String baseUrl = "http://192.168.1.8:8000/api"; // Ton URL API
+  final String baseUrl = "http://192.168.1.5:8000/api"; // Ton URL API
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -123,7 +123,7 @@ class BailDataSource {
     final token = await _getToken();
 
     final response = await http.get(
-      Uri.parse('$baseUrl/Locataire/bailpaie'),
+      Uri.parse('$baseUrl/locataire/baux'),
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
